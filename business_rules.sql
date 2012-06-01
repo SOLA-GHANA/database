@@ -442,13 +442,9 @@ values('baunit-check-name', 'sql', 'Invalid identifier for title::::Invalido tit
 
 insert into system.br_definition(br_id, active_from, active_until, body) 
 values('baunit-check-name', now(), 'infinity', 
-'SELECT count(*) > 0 as vl 
+'SELECT administrative.ba_unit_name_is_valid(name_firstpart, name_lastpart) as vl 
 FROM administrative.ba_unit 
-WHERE id= #{id} 
-	AND name_firstpart IS NULL
-	OR name_lastpart IS NULL
-	OR SUBSTR(name_firstpart, 1) = ''N''
-	OR TO_NUMBER(name_lastpart, ''9999'') = 0');
+WHERE id= #{id}');
 ----------------------------------------------------------------------------------------------------
 insert into system.br(id, technical_type_code, feedback, technical_description) 
 values('application-check-no-previous-digital-title-service', 'sql', 'Checks to see if a digital title already exists for requested property::::Controllare se esiste un titolo digita per la proprieta richiesta',
@@ -660,30 +656,26 @@ values('cadastre-object-check-name', 'sql', 'Invalid identifier for parcel (cada
 
 insert into system.br_definition(br_id, active_from, active_until, body) 
 values('cadastre-object-check-name', now(), 'infinity', 
-'Select Count(*) = 1 as vl 
+'Select cadastre.cadastre_object_name_is_valid(name_firstpart, name_lastpart) as vl 
 FROM cadastre.cadastre_object
 WHERE transaction_id = #{id} and type_code = ''parcel''
-	AND ((SUBSTRING(name_firstpart from 1 for 4) = ''Lot ''))
-	AND (SUBSTRING(name_lastpart from 1 for 3) = ''DP '') 
-	AND TO_NUMBER(SUBSTRING(name_firstpart from 5 for (CHAR_LENGTH(name_firstpart) - 4)), ''999'') > 0
-	AND TO_NUMBER(SUBSTRING(name_lastpart from 4 for POSITION('' '' IN SUBSTRING(name_lastpart from 4 for (CHAR_LENGTH(name_lastpart) - 4)))), ''9999'') > 0');	   		   
+order by 1
+limit 1');
 -------------End ba_unit and other business rules - Neil 01 November 2011-------------------------
 ----------------------------------------------------------------------------------------------------
 -------------Start application business rules - Neil 18 November 2011-------------------------
 ----------------------------------------------------------------------------------------------------
 insert into system.br(id, technical_type_code, feedback, technical_description) 
-values('app-baunit-name-check', 'sql', 'Invalid identifier for title::::Identificativo titolo invalido',
+values('app-baunit-name-check', 'sql', 'The identifier for the property is according to the format::::Identificativo titolo invalido',
  '#{id}(application.application.id) is requested');
 
 insert into system.br_definition(br_id, active_from, active_until, body) 
 values('app-baunit-name-check', now(), 'infinity', 
-'SELECT count(*) > 0 as vl 
+'SELECT administrative.ba_unit_name_is_valid(name_firstpart, name_lastpart) as vl 
 FROM application.application_property 
-WHERE application_id= #{id} 
-	AND name_firstpart IS NULL
-	OR name_lastpart IS NULL
-	OR SUBSTR(name_firstpart, 1) = ''N''
-	OR TO_NUMBER(name_lastpart, ''9999'') = 0');
+WHERE application_id= #{id}
+ORDER BY 1
+LIMIT 1');
 ----------------------------------------------------------------------------------------------------
 insert into system.br(id, technical_type_code, feedback, technical_description) 
 values('app-shares-total-check', 'sql', 'Shares do not total to 1::::Le quote non raggiungono 1',
@@ -1136,8 +1128,6 @@ values('area-check-percentage-newareas-oldareas', 'warning', 'current', 'cadastr
 
 -----------END  Cadastre Change [Floss 634 (subtask of Floss 555)]-----------------------------------------------------------------------------------------
 -------------Start ba_unit and other business Validation Rules - Neil 01 November 2011-------------------------
---insert into system.br_validation(br_id, severity_code, target_application_moment, target_code, order_of_execution) 
---values('baunit-check-name', 'medium', 'validate', 'application', 9);
 
 insert into system.br_validation(br_id, severity_code, target_application_moment, target_code, order_of_execution) 
 values('application-check-no-previous-digital-title-service', 'warning', 'validate', 'application', 10);
@@ -1183,8 +1173,8 @@ values('baunit-has-compatible-cadastre-object', 'medium', 'current', 'ba_unit', 
 
 -------------End ba_unit and other business Validation Rules - Neil 01 November 2011-------------------------
 -------------Start application Validation Rules - Neil 18 November 2011-------------------------
---insert into system.br_validation(br_id, severity_code, moment_code, target_code, order_of_execution) 
---values('application-valid-property-name', 'app-baunit-name-check', 'medium', 'start', 'application', 9);
+insert into system.br_validation(br_id, severity_code, target_application_moment, target_code, order_of_execution) 
+values('app-baunit-name-check', 'medium', 'validate', 'application', 9);
 
 insert into system.br_validation(br_id, severity_code, target_application_moment, target_code, order_of_execution) 
 values('app-shares-total-check', 'critical', 'validate', 'application', 16);
