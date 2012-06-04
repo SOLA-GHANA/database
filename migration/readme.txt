@@ -17,6 +17,14 @@ What does the script do?
 * Extracts the archive to the destination folder
 * Converts LOT Data from ArcInfo format to ArcInfo Coverage
 * Converts BLOCK Data from ArcInfo format to ArcInfo Coverage
+* Converts LOT Data from ArcInfo Coverage to Shapefile
+* Converts BLOCK Data from ArcInfo Coverage to Shapefile
+* Converts BLOCK Shapefile to .sql file with insert statements (only PAL.shp)
+* Runs the .sql script against the database and populate the table staging_area.shape_block
+* Updates the new inserted records to accept the section identifier and the region
+* Converts LOT Shapefile to .sql file with insert statements (only PAL.shp)
+* Runs the .sql script against the database and populate the table staging_area.shape_lot
+
 It takes parameters in this order:
 - sectionnr: This is of format S020. So not only the section number, but it is with an S before.
 - db_host: is the server where the database is found
