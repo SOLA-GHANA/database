@@ -1,4 +1,18 @@
-﻿--Empty the table where the data about regions, districts, rections and blocks are stored
+﻿--Create handy views
+--View that gives the parcels
+create or replace view staging_area.parcel as 
+select 
+b.region || '/' || substring(b.section  from 2 for 3) || '/' || b.blockno || '/' || l.lotno as id, 
+'parcel' as type_code,
+b.region || '/' || substring(b.section  from 2 for 3) || '/' || b.blockno as name_firstpart,
+l.lotno as name_lastpart,
+'current' as status_code,
+st_transform(st_geometryn(l.geom,1), 32630) as geom_polygon,
+'migration-transaction' as transaction_id
+from staging_area.shape_lot l, staging_area.shape_block b
+where l.lotno != '9999' and l.geom && b.geom and st_intersects(st_centroid(l.geom), b.geom);
+
+--Empty the table where the data about regions, districts, rections and blocks are stored
 delete from cadastre.spatial_unit_group;
 --Empty the table where the data about parcels are stored
 delete from cadastre.spatial_unit;
@@ -36,16 +50,12 @@ where the_geom is not null and st_isvalid(the_geom);
 
 -- Insert parcels. It excludes parcels that miss part of the identifier or their identifier is used more than once or the geometry is not valid
 insert into cadastre.cadastre_object(id, type_code, name_firstpart, name_lastpart, status_code, geom_polygon, transaction_id)
-select 
-b.region || '/' || substring(b.section  from 2 for 3) || '/' || b.blockno || '/' || l.lotno as id, 
-'parcel' as type_code,
-b.region || '/' || substring(b.section  from 2 for 3) || '/' || b.blockno as name_firstpart,
-l.lotno as name_lastpart,
-'current' as status_code,
-st_transform(l.geom, 32630) as geom_polygon,
-'migration-transaction' as transaction_id
-from staging_area.shape_lot l, staging_area.shape_block b
-where l.lotno != '9999' and l.geom && b.geom and st_intersects(st_centroid(l.geom), b.geom);
+select id, type_code, name_firstpart, name_lastpart, status_code, geom_polygon, transaction_id
+from staging_area.parcel
+where id not in (select id
+  from staging_area.parcel  
+  group by id
+  having count(*)>1);
 
 --Insert official area and calculated area for each parcel. The area is retrieved from the geometry
 insert into cadastre.spatial_value_area(spatial_unit_id, type_code, size) 
