@@ -142,8 +142,7 @@ to call to disable all triggers in all schemas in db
 select fn_triggerall(false);
 
 to call to enable all triggers in all schemas in db
-select fn_triggerall(true);
-';
+select fn_triggerall(true);';
     
 -- Function public.clean_db --
 CREATE OR REPLACE FUNCTION public.clean_db(
@@ -769,7 +768,7 @@ $$ LANGUAGE plpgsql;
 COMMENT ON FUNCTION cadastre.cadastre_object_name_is_valid(
  name_firstpart varchar
   , name_lastpart varchar
-) IS '';
+) IS 'This function, checks if the name parts of the cadastre_object are valid.';
     
     
 select clean_db('public');
@@ -1353,11 +1352,11 @@ CREATE TRIGGER __track_history AFTER UPDATE OR DELETE
 DROP TABLE IF EXISTS administrative.ba_unit CASCADE;
 CREATE TABLE administrative.ba_unit(
     id varchar(40) NOT NULL,
-    type_code varchar(20) NOT NULL DEFAULT ('basicPropertyUnit'),
+    type_code varchar(20) NOT NULL,
     name varchar(255),
     name_firstpart varchar(20) NOT NULL,
     name_lastpart varchar(50) NOT NULL,
-    status_code varchar(20) NOT NULL DEFAULT ('pending'),
+    status_code varchar(20) NOT NULL,
     transaction_id varchar(40),
     rowidentifier varchar(40) NOT NULL DEFAULT (uuid_generate_v1()),
     rowversion integer NOT NULL DEFAULT (0),
@@ -1440,10 +1439,10 @@ LADM Definition
 Not Defined';
     
  -- Data for the table administrative.ba_unit_type -- 
-insert into administrative.ba_unit_type(code, display_value, description, status) values('basicPropertyUnit', 'Basic Property Unit::::Unita base Proprieta', 'This is the basic property unit that is used by default', 'c');
-insert into administrative.ba_unit_type(code, display_value, status) values('leasedUnit', 'Leased Unit::::Unita Affitto', 'x');
-insert into administrative.ba_unit_type(code, display_value, status) values('propertyRightUnit', 'Property Right Unit::::Unita Diritto Proprieta', 'x');
-insert into administrative.ba_unit_type(code, display_value, status) values('administrativeUnit', 'Administrative Unit', 'x');
+insert into administrative.ba_unit_type(code, display_value, status) values('allodial', 'Allodial', 'c');
+insert into administrative.ba_unit_type(code, display_value, status) values('customaryLawFreehold', 'Customary Law Freehold', 'c');
+insert into administrative.ba_unit_type(code, display_value, status) values('leaseHold', 'Lease Hold', 'c');
+insert into administrative.ba_unit_type(code, display_value, description, status) values('commonLawFreehold', 'Common Law Freehold', '', 'c');
 
 
 
@@ -1612,6 +1611,7 @@ insert into administrative.rrr_type(code, rrr_group_type_code, display_value, is
 insert into administrative.rrr_type(code, rrr_group_type_code, display_value, is_primary, share_check, party_required, description, status) values('caveat', 'restrictions', 'Caveat::::Ammonizione', false, true, true, 'Extension to LADM', 'c');
 insert into administrative.rrr_type(code, rrr_group_type_code, display_value, is_primary, share_check, party_required, description, status) values('historicPreservation', 'restrictions', 'Historic Preservation::::Conservazione Storica', false, false, false, 'Extension to LADM', 'c');
 insert into administrative.rrr_type(code, rrr_group_type_code, display_value, is_primary, share_check, party_required, description, status) values('limitedAccess', 'restrictions', 'Limited Access (to Road)::::Accesso limitato (su strada)', false, false, false, 'Extension to LADM', 'c');
+insert into administrative.rrr_type(code, rrr_group_type_code, display_value, is_primary, share_check, party_required, status) values('rrrStandard', 'rights', 'Incidence of Interest', true, true, true, 'c');
 
 
 
@@ -1889,7 +1889,7 @@ CREATE TABLE cadastre.spatial_unit(
     level_id varchar(40),
     reference_point GEOMETRY
         CONSTRAINT enforce_dims_reference_point CHECK (st_ndims(reference_point) = 2),
-        CONSTRAINT enforce_srid_reference_point CHECK (st_srid(reference_point) = 2193),
+        CONSTRAINT enforce_srid_reference_point CHECK (st_srid(reference_point) = 32630),
         CONSTRAINT enforce_valid_reference_point CHECK (st_isvalid(reference_point)),
         CONSTRAINT enforce_geotype_reference_point CHECK (geometrytype(reference_point) = 'POINT'::text OR reference_point IS NULL),
     geom GEOMETRY
@@ -1942,7 +1942,7 @@ CREATE TABLE cadastre.spatial_unit_historic
     level_id varchar(40),
     reference_point GEOMETRY
         CONSTRAINT enforce_dims_reference_point CHECK (st_ndims(reference_point) = 2),
-        CONSTRAINT enforce_srid_reference_point CHECK (st_srid(reference_point) = 2193),
+        CONSTRAINT enforce_srid_reference_point CHECK (st_srid(reference_point) = 32630),
         CONSTRAINT enforce_valid_reference_point CHECK (st_isvalid(reference_point)),
         CONSTRAINT enforce_geotype_reference_point CHECK (geometrytype(reference_point) = 'POINT'::text OR reference_point IS NULL),
     geom GEOMETRY
@@ -2318,12 +2318,12 @@ CREATE TABLE cadastre.spatial_unit_group(
     name varchar(50),
     reference_point GEOMETRY
         CONSTRAINT enforce_dims_reference_point CHECK (st_ndims(reference_point) = 2),
-        CONSTRAINT enforce_srid_reference_point CHECK (st_srid(reference_point) = 2193),
+        CONSTRAINT enforce_srid_reference_point CHECK (st_srid(reference_point) = 32630),
         CONSTRAINT enforce_valid_reference_point CHECK (st_isvalid(reference_point)),
         CONSTRAINT enforce_geotype_reference_point CHECK (geometrytype(reference_point) = 'POINT'::text OR reference_point IS NULL),
     geom GEOMETRY
         CONSTRAINT enforce_dims_geom CHECK (st_ndims(geom) = 2),
-        CONSTRAINT enforce_srid_geom CHECK (st_srid(geom) = 2193),
+        CONSTRAINT enforce_srid_geom CHECK (st_srid(geom) = 32630),
         CONSTRAINT enforce_valid_geom CHECK (st_isvalid(geom)),
         CONSTRAINT enforce_geotype_geom CHECK (geometrytype(geom) = 'MULTIPOLYGON'::text OR geom IS NULL),
     found_in_spatial_unit_group_id varchar(40),
@@ -2372,12 +2372,12 @@ CREATE TABLE cadastre.spatial_unit_group_historic
     name varchar(50),
     reference_point GEOMETRY
         CONSTRAINT enforce_dims_reference_point CHECK (st_ndims(reference_point) = 2),
-        CONSTRAINT enforce_srid_reference_point CHECK (st_srid(reference_point) = 2193),
+        CONSTRAINT enforce_srid_reference_point CHECK (st_srid(reference_point) = 32630),
         CONSTRAINT enforce_valid_reference_point CHECK (st_isvalid(reference_point)),
         CONSTRAINT enforce_geotype_reference_point CHECK (geometrytype(reference_point) = 'POINT'::text OR reference_point IS NULL),
     geom GEOMETRY
         CONSTRAINT enforce_dims_geom CHECK (st_ndims(geom) = 2),
-        CONSTRAINT enforce_srid_geom CHECK (st_srid(geom) = 2193),
+        CONSTRAINT enforce_srid_geom CHECK (st_srid(geom) = 32630),
         CONSTRAINT enforce_valid_geom CHECK (st_isvalid(geom)),
         CONSTRAINT enforce_geotype_geom CHECK (geometrytype(geom) = 'MULTIPOLYGON'::text OR geom IS NULL),
     found_in_spatial_unit_group_id varchar(40),
@@ -2698,7 +2698,7 @@ CREATE TABLE application.application(
     assigned_datetime timestamp,
     location GEOMETRY
         CONSTRAINT enforce_dims_location CHECK (st_ndims(location) = 2),
-        CONSTRAINT enforce_srid_location CHECK (st_srid(location) = 2193),
+        CONSTRAINT enforce_srid_location CHECK (st_srid(location) = 32630),
         CONSTRAINT enforce_valid_location CHECK (st_isvalid(location)),
         CONSTRAINT enforce_geotype_location CHECK (geometrytype(location) = 'MULTIPOINT'::text OR location IS NULL),
     services_fee numeric(20, 2) NOT NULL DEFAULT (0),
@@ -2756,7 +2756,7 @@ CREATE TABLE application.application_historic
     assigned_datetime timestamp,
     location GEOMETRY
         CONSTRAINT enforce_dims_location CHECK (st_ndims(location) = 2),
-        CONSTRAINT enforce_srid_location CHECK (st_srid(location) = 2193),
+        CONSTRAINT enforce_srid_location CHECK (st_srid(location) = 32630),
         CONSTRAINT enforce_valid_location CHECK (st_isvalid(location)),
         CONSTRAINT enforce_geotype_location CHECK (geometrytype(location) = 'MULTIPOINT'::text OR location IS NULL),
     services_fee numeric(20, 2),
@@ -2826,7 +2826,7 @@ Not Applicable';
 insert into application.request_type(code, request_category_code, display_value, status, nr_days_to_complete, base_fee, area_base_fee, value_base_fee, nr_properties_required) values('cadastreChange', 'registrationServices', 'Change to Cadastre::::Cambio del Catasto', 'c', 30, 25.00, 0.10, 0, 1);
 insert into application.request_type(code, request_category_code, display_value, status, nr_days_to_complete, base_fee, area_base_fee, value_base_fee, nr_properties_required) values('redefineCadastre', 'registrationServices', 'Redefine Cadastre::::ITALIANO', 'c', 30, 25.00, 0.10, 0, 1);
 insert into application.request_type(code, request_category_code, display_value, status, nr_days_to_complete, base_fee, area_base_fee, value_base_fee, nr_properties_required) values('documentCopy', 'informationServices', 'Document Copy::::Copia Documento', 'c', 1, 0.50, 0.00, 0, 0);
-insert into application.request_type(code, request_category_code, display_value, status, nr_days_to_complete, base_fee, area_base_fee, value_base_fee, nr_properties_required, notation_template, rrr_type_code, type_action_code) values('varyMortgage', 'registrationServices', 'Vary Mortgage::::ITALIANO', 'c', 1, 5.00, 0.00, 0, 1, 'Change on the mortgage', 'mortgage', 'vary');
+insert into application.request_type(code, request_category_code, display_value, status, nr_days_to_complete, base_fee, area_base_fee, value_base_fee, nr_properties_required, notation_template, rrr_type_code, type_action_code) values('mortgageCertificate', 'registrationServices', 'Mortgage Certificate::::Certiificato Ipoteca', 'x', 1, 5.00, 0.00, 0, 1, 'Mortgage Certificate issued', 'mortgage', 'vary');
 insert into application.request_type(code, request_category_code, display_value, status, nr_days_to_complete, base_fee, area_base_fee, value_base_fee, nr_properties_required, notation_template) values('newFreehold', 'registrationServices', 'New Freehold Title::::Nuovo Titolo', 'c', 5, 5.00, 0.00, 0, 1, 'Fee Simple Estate');
 insert into application.request_type(code, request_category_code, display_value, status, nr_days_to_complete, base_fee, area_base_fee, value_base_fee, nr_properties_required) values('serviceEnquiry', 'informationServices', 'Service Enquiry::::Richiesta Servizio', 'c', 1, 0.00, 0.00, 0, 0);
 insert into application.request_type(code, request_category_code, display_value, status, nr_days_to_complete, base_fee, area_base_fee, value_base_fee, nr_properties_required) values('regnDeeds', 'registrationServices', 'Deed Registration::::Registrazione Atto', 'x', 3, 1.00, 0.00, 0, 0);
@@ -2860,7 +2860,6 @@ insert into application.request_type(code, request_category_code, display_value,
 insert into application.request_type(code, request_category_code, display_value, status, nr_days_to_complete, base_fee, area_base_fee, value_base_fee, nr_properties_required) values('newDigitalProperty', 'registrationServices', 'New Digital Property::::Nuova Proprieta Digitale', 'x', 5, 0.00, 0.00, 0, 1);
 insert into application.request_type(code, request_category_code, display_value, status, nr_days_to_complete, base_fee, area_base_fee, value_base_fee, nr_properties_required, notation_template, type_action_code) values('removeRestriction', 'registrationServices', 'Remove Restriction (General)::::ITALIANO', 'c', 5, 5.00, 0.00, 0, 1, '<restriction> <reference> cancelled', 'cancel');
 insert into application.request_type(code, request_category_code, display_value, status, nr_days_to_complete, base_fee, area_base_fee, value_base_fee, nr_properties_required, notation_template, type_action_code) values('cancelProperty', 'registrationServices', 'Cancel property::::Cancella prioprieta', 'c', 5, 5, 0, 0, 1, '', 'cancel');
-insert into application.request_type(code, request_category_code, display_value, status, nr_days_to_complete, base_fee, area_base_fee, value_base_fee, nr_properties_required, notation_template, rrr_type_code, type_action_code) values('varyCaveat', 'registrationServices', 'Vary caveat', 'c', 5, 5, 0, 0, 1, '<Caveat> <reference>', 'caveat', 'vary');
 
 
 
@@ -3392,7 +3391,7 @@ insert into application.application_action_type(code, display_value, status, des
 insert into application.application_action_type(code, display_value, status, description) values('validatePassed', 'Quality Check Passes::::Controllo Qualita Superato', 'c', 'Quality check passes (automatically logged when business rules are run without any critical failures)::::Controllo Qualita Superato');
 insert into application.application_action_type(code, display_value, status_to_set, status, description) values('approve', 'Approve::::Approvata', 'approved', 'c', 'Application is approved (automatically logged when application is approved successively)::::Pratica approvata');
 insert into application.application_action_type(code, display_value, status_to_set, status, description) values('archive', 'Archive::::Archiviata', 'completed', 'c', 'Paper application records are archived (action is manually logged)::::I fogli della pratica sono stati archiviati');
-insert into application.application_action_type(code, display_value, status, description) values('dispatch', 'Despatch::::Inviata', 'c', 'Application documents and new land office products are sent or collected by applicant (action is manually logged)::::I documenti della pratica e i nuovi prodotti da Ufficio Territoriale sono stati spediti o ritirati dal richiedente');
+insert into application.application_action_type(code, display_value, status, description) values('dispatch', 'Dispatch::::Inviata', 'c', 'Application documents and new land office products are sent or collected by applicant (action is manually logged)::::I documenti della pratica e i nuovi prodotti da Ufficio Territoriale sono stati spediti o ritirati dal richiedente');
 insert into application.application_action_type(code, display_value, status_to_set, status) values('lapse', 'Lapse::::ITALIANO', 'anulled', 'c');
 insert into application.application_action_type(code, display_value, status) values('assign', 'Assign::::ITALIANO', 'c');
 insert into application.application_action_type(code, display_value, status) values('unAssign', 'Unassign::::ITALIANO', 'c');
@@ -3637,8 +3636,8 @@ Not Applicable';
  -- Data for the table application.request_type_requires_source_type -- 
 insert into application.request_type_requires_source_type(source_type_code, request_type_code) values('cadastralSurvey', 'cadastreChange');
 insert into application.request_type_requires_source_type(source_type_code, request_type_code) values('cadastralSurvey', 'redefineCadastre');
-insert into application.request_type_requires_source_type(source_type_code, request_type_code) values('mortgage', 'varyMortgage');
-insert into application.request_type_requires_source_type(source_type_code, request_type_code) values('title', 'varyMortgage');
+insert into application.request_type_requires_source_type(source_type_code, request_type_code) values('mortgage', 'mortgageCertificate');
+insert into application.request_type_requires_source_type(source_type_code, request_type_code) values('title', 'mortgageCertificate');
 insert into application.request_type_requires_source_type(source_type_code, request_type_code) values('title', 'regnOnTitle');
 insert into application.request_type_requires_source_type(source_type_code, request_type_code) values('deed', 'regnDeeds');
 insert into application.request_type_requires_source_type(source_type_code, request_type_code) values('lease', 'registerLease');
@@ -3788,11 +3787,11 @@ LADM Definition
 Not Applicable';
     
  -- Data for the table system.setting -- 
-insert into system.setting(name, vl, active, description) values('map-srid', '2193', true, 'The srid of the geographic data that are administered in the system.');
-insert into system.setting(name, vl, active, description) values('map-west', '1776400', true, 'The most west coordinate. It is used in the map control.');
-insert into system.setting(name, vl, active, description) values('map-south', '5919888', true, 'The most south coordinate. It is used in the map control.');
-insert into system.setting(name, vl, active, description) values('map-east', '1795771', true, 'The most east coordinate. It is used in the map control.');
-insert into system.setting(name, vl, active, description) values('map-north', '5932259', true, 'The most north coordinate. It is used in the map control.');
+insert into system.setting(name, vl, active, description) values('map-srid', '32630', true, 'The srid of the geographic data that are administered in the system.');
+insert into system.setting(name, vl, active, description) values('map-west', '812000', true, 'The most west coordinate. It is used in the map control.');
+insert into system.setting(name, vl, active, description) values('map-south', '615000', true, 'The most south coordinate. It is used in the map control.');
+insert into system.setting(name, vl, active, description) values('map-east', '814200', true, 'The most east coordinate. It is used in the map control.');
+insert into system.setting(name, vl, active, description) values('map-north', '617200', true, 'The most north coordinate. It is used in the map control.');
 insert into system.setting(name, vl, active, description) values('map-tolerance', '0.01', true, 'The tolerance that is used while snapping geometries to each other. If two points are within this distance are considered being in the same location.');
 insert into system.setting(name, vl, active, description) values('map-shift-tolerance-rural', '20', true, 'The shift tolerance of boundary points used in cadastre change in rural areas.');
 insert into system.setting(name, vl, active, description) values('map-shift-tolerance-urban', '5', true, 'The shift tolerance of boundary points used in cadastre change in urban areas.');
@@ -3879,13 +3878,14 @@ LADM Definition
 Not Applicable';
     
  -- Data for the table system.config_map_layer -- 
-insert into system.config_map_layer(name, title, type_code, pojo_query_name, pojo_structure, pojo_query_name_for_select, style, active, item_order) values('parcels', 'Parcels::::ITALIANO', 'pojo', 'SpatialResult.getParcels', 'theGeom:Polygon,label:""', 'dynamic.informationtool.get_parcel', 'parcel.xml', true, 20);
-insert into system.config_map_layer(name, title, type_code, pojo_query_name, pojo_structure, pojo_query_name_for_select, style, active, item_order) values('pending-parcels', 'Pending parcels::::ITALIANO', 'pojo', 'SpatialResult.getParcelsPending', 'theGeom:Polygon,label:""', 'dynamic.informationtool.get_parcel_pending', 'pending_parcels.xml', true, 30);
-insert into system.config_map_layer(name, title, type_code, pojo_query_name, pojo_structure, pojo_query_name_for_select, style, active, item_order) values('roads', 'Roads::::ITALIANO', 'pojo', 'SpatialResult.getRoads', 'theGeom:MultiPolygon,label:""', 'dynamic.informationtool.get_road', 'road.xml', true, 40);
-insert into system.config_map_layer(name, title, type_code, pojo_query_name, pojo_structure, pojo_query_name_for_select, style, active, item_order) values('survey-controls', 'Survey controls::::ITALIANO', 'pojo', 'SpatialResult.getSurveyControls', 'theGeom:Point,label:""', 'dynamic.informationtool.get_survey_control', 'survey_control.xml', true, 50);
-insert into system.config_map_layer(name, title, type_code, pojo_query_name, pojo_structure, pojo_query_name_for_select, style, active, item_order) values('place-names', 'Places names::::ITALIANO', 'pojo', 'SpatialResult.getPlaceNames', 'theGeom:Point,label:""', 'dynamic.informationtool.get_place_name', 'place_name.xml', true, 60);
-insert into system.config_map_layer(name, title, type_code, pojo_query_name, pojo_structure, pojo_query_name_for_select, style, active, item_order) values('applications', 'Applications::::ITALIANO', 'pojo', 'SpatialResult.getApplications', 'theGeom:MultiPoint,label:""', 'dynamic.informationtool.get_application', 'application.xml', true, 70);
-insert into system.config_map_layer(name, title, type_code, pojo_query_name, pojo_structure, pojo_query_name_for_select, style, active, item_order) values('parcels-historic-current-ba', 'Historic parcels with current titles', 'pojo', 'SpatialResult.getParcelsHistoricWithCurrentBA', 'theGeom:Polygon,label:""', 'dynamic.informationtool.get_parcel_historic_current_ba', 'parcel_historic_current_ba.xml', true, 10);
+insert into system.config_map_layer(name, title, type_code, pojo_query_name, pojo_structure, pojo_query_name_for_select, style, active, item_order, visible_in_start) values('parcels', 'Parcels', 'pojo', 'SpatialResult.getParcels', 'theGeom:Polygon,label:""', 'dynamic.informationtool.get_parcel', 'parcel.xml', true, 20, true);
+insert into system.config_map_layer(name, title, type_code, pojo_query_name, pojo_structure, pojo_query_name_for_select, style, active, item_order, visible_in_start) values('pending-parcels', 'Pending parcels', 'pojo', 'SpatialResult.getParcelsPending', 'theGeom:Polygon,label:""', 'dynamic.informationtool.get_parcel_pending', 'pending_parcels.xml', true, 30, true);
+insert into system.config_map_layer(name, title, type_code, pojo_query_name, pojo_structure, pojo_query_name_for_select, style, active, item_order, visible_in_start) values('applications', 'Applications', 'pojo', 'SpatialResult.getApplications', 'theGeom:MultiPoint,label:""', 'dynamic.informationtool.get_application', 'application.xml', true, 70, true);
+insert into system.config_map_layer(name, title, type_code, pojo_query_name, pojo_structure, pojo_query_name_for_select, style, active, item_order, visible_in_start) values('parcels-historic-current-ba', 'Historic parcels with current titles', 'pojo', 'SpatialResult.getParcelsHistoricWithCurrentBA', 'theGeom:Polygon,label:""', 'dynamic.informationtool.get_parcel_historic_current_ba', 'parcel_historic_current_ba.xml', true, 10, true);
+insert into system.config_map_layer(name, title, type_code, pojo_query_name, pojo_structure, pojo_query_name_for_select, style, active, item_order, visible_in_start) values('regions', 'Regions', 'pojo', 'SpatialResult.getRegion', 'theGeom:Polygon,label:""', 'dynamic.informationtool.get_region', 'region.xml', true, 80, true);
+insert into system.config_map_layer(name, title, type_code, pojo_query_name, pojo_structure, pojo_query_name_for_select, style, active, item_order, visible_in_start) values('districts', 'Districts', 'pojo', 'SpatialResult.getDistrict', 'theGeom:Polygon,label:""', 'dynamic.informationtool.get_district', 'district.xml', true, 90, true);
+insert into system.config_map_layer(name, title, type_code, pojo_query_name, pojo_structure, pojo_query_name_for_select, style, active, item_order, visible_in_start) values('sections', 'Sections', 'pojo', 'SpatialResult.getSection', 'theGeom:Polygon,label:""', 'dynamic.informationtool.get_section', 'section.xml', true, 100, true);
+insert into system.config_map_layer(name, title, type_code, pojo_query_name, pojo_structure, pojo_query_name_for_select, style, active, item_order, visible_in_start) values('blocks', 'Blocks', 'pojo', 'SpatialResult.getBlock', 'theGeom:Polygon,label:""', 'dynamic.informationtool.get_block', 'block.xml', true, 110, true);
 
 
 
@@ -4021,7 +4021,7 @@ CREATE TABLE system.br_validation(
     CONSTRAINT br_validation_service_request_type_valid CHECK (target_request_type_code is null or (target_request_type_code is not null and target_code != 'application')),
     CONSTRAINT br_validation_rrr_rrr_type_valid CHECK (target_rrr_type_code is null or (target_rrr_type_code is not null and target_code = 'rrr')),
     CONSTRAINT br_validation_app_moment_unique UNIQUE (br_id, target_code, target_application_moment),
-    CONSTRAINT br_validation_service_moment_unique UNIQUE (br_id, target_code, target_service_moment, target_request_type_code),
+    CONSTRAINT br_validation_service_moment_unique UNIQUE (br_id, target_code, target_service_moment),
     CONSTRAINT br_validation_reg_moment_unique UNIQUE (br_id, target_code, target_reg_moment),
     CONSTRAINT br_validation_service_moment_valid CHECK (target_code!= 'service' or (target_code = 'service' and target_application_moment is null and target_reg_moment is null)),
     CONSTRAINT br_validation_application_moment_valid CHECK (target_code!= 'application' or (target_code = 'application' and target_service_moment is null and target_reg_moment is null)),
@@ -4138,7 +4138,7 @@ CREATE TABLE cadastre.cadastre_object(
     status_code varchar(20) NOT NULL DEFAULT ('pending'),
     geom_polygon GEOMETRY
         CONSTRAINT enforce_dims_geom_polygon CHECK (st_ndims(geom_polygon) = 2),
-        CONSTRAINT enforce_srid_geom_polygon CHECK (st_srid(geom_polygon) = 2193),
+        CONSTRAINT enforce_srid_geom_polygon CHECK (st_srid(geom_polygon) = 32630),
         CONSTRAINT enforce_valid_geom_polygon CHECK (st_isvalid(geom_polygon)),
         CONSTRAINT enforce_geotype_geom_polygon CHECK (geometrytype(geom_polygon) = 'POLYGON'::text OR geom_polygon IS NULL),
     transaction_id varchar(40) NOT NULL,
@@ -4186,7 +4186,7 @@ CREATE TABLE cadastre.cadastre_object_historic
     status_code varchar(20),
     geom_polygon GEOMETRY
         CONSTRAINT enforce_dims_geom_polygon CHECK (st_ndims(geom_polygon) = 2),
-        CONSTRAINT enforce_srid_geom_polygon CHECK (st_srid(geom_polygon) = 2193),
+        CONSTRAINT enforce_srid_geom_polygon CHECK (st_srid(geom_polygon) = 32630),
         CONSTRAINT enforce_valid_geom_polygon CHECK (st_isvalid(geom_polygon)),
         CONSTRAINT enforce_geotype_geom_polygon CHECK (geometrytype(geom_polygon) = 'POLYGON'::text OR geom_polygon IS NULL),
     transaction_id varchar(40),
@@ -4588,7 +4588,7 @@ CREATE TABLE cadastre.cadastre_object_target(
     cadastre_object_id varchar(40) NOT NULL,
     geom_polygon GEOMETRY
         CONSTRAINT enforce_dims_geom_polygon CHECK (st_ndims(geom_polygon) = 2),
-        CONSTRAINT enforce_srid_geom_polygon CHECK (st_srid(geom_polygon) = 2193),
+        CONSTRAINT enforce_srid_geom_polygon CHECK (st_srid(geom_polygon) = 32630),
         CONSTRAINT enforce_valid_geom_polygon CHECK (st_isvalid(geom_polygon)),
         CONSTRAINT enforce_geotype_geom_polygon CHECK (geometrytype(geom_polygon) = 'POLYGON'::text OR geom_polygon IS NULL),
     rowidentifier varchar(40) NOT NULL DEFAULT (uuid_generate_v1()),
@@ -4627,7 +4627,7 @@ CREATE TABLE cadastre.cadastre_object_target_historic
     cadastre_object_id varchar(40),
     geom_polygon GEOMETRY
         CONSTRAINT enforce_dims_geom_polygon CHECK (st_ndims(geom_polygon) = 2),
-        CONSTRAINT enforce_srid_geom_polygon CHECK (st_srid(geom_polygon) = 2193),
+        CONSTRAINT enforce_srid_geom_polygon CHECK (st_srid(geom_polygon) = 32630),
         CONSTRAINT enforce_valid_geom_polygon CHECK (st_isvalid(geom_polygon)),
         CONSTRAINT enforce_geotype_geom_polygon CHECK (geometrytype(geom_polygon) = 'POLYGON'::text OR geom_polygon IS NULL),
     rowidentifier varchar(40),
@@ -4682,12 +4682,12 @@ CREATE TABLE cadastre.survey_point(
     boundary bool NOT NULL DEFAULT (true),
     geom GEOMETRY NOT NULL
         CONSTRAINT enforce_dims_geom CHECK (st_ndims(geom) = 2),
-        CONSTRAINT enforce_srid_geom CHECK (st_srid(geom) = 2193),
+        CONSTRAINT enforce_srid_geom CHECK (st_srid(geom) = 32630),
         CONSTRAINT enforce_valid_geom CHECK (st_isvalid(geom)),
         CONSTRAINT enforce_geotype_geom CHECK (geometrytype(geom) = 'POINT'::text OR geom IS NULL),
     original_geom GEOMETRY NOT NULL
         CONSTRAINT enforce_dims_original_geom CHECK (st_ndims(original_geom) = 2),
-        CONSTRAINT enforce_srid_original_geom CHECK (st_srid(original_geom) = 2193),
+        CONSTRAINT enforce_srid_original_geom CHECK (st_srid(original_geom) = 32630),
         CONSTRAINT enforce_valid_original_geom CHECK (st_isvalid(original_geom)),
         CONSTRAINT enforce_geotype_original_geom CHECK (geometrytype(original_geom) = 'POINT'::text OR original_geom IS NULL),
     rowidentifier varchar(40) NOT NULL DEFAULT (uuid_generate_v1()),
@@ -4730,12 +4730,12 @@ CREATE TABLE cadastre.survey_point_historic
     boundary bool,
     geom GEOMETRY
         CONSTRAINT enforce_dims_geom CHECK (st_ndims(geom) = 2),
-        CONSTRAINT enforce_srid_geom CHECK (st_srid(geom) = 2193),
+        CONSTRAINT enforce_srid_geom CHECK (st_srid(geom) = 32630),
         CONSTRAINT enforce_valid_geom CHECK (st_isvalid(geom)),
         CONSTRAINT enforce_geotype_geom CHECK (geometrytype(geom) = 'POINT'::text OR geom IS NULL),
     original_geom GEOMETRY
         CONSTRAINT enforce_dims_original_geom CHECK (st_ndims(original_geom) = 2),
-        CONSTRAINT enforce_srid_original_geom CHECK (st_srid(original_geom) = 2193),
+        CONSTRAINT enforce_srid_original_geom CHECK (st_srid(original_geom) = 32630),
         CONSTRAINT enforce_valid_original_geom CHECK (st_isvalid(original_geom)),
         CONSTRAINT enforce_geotype_original_geom CHECK (geometrytype(original_geom) = 'POINT'::text OR original_geom IS NULL),
     rowidentifier varchar(40),
@@ -4964,73 +4964,26 @@ CREATE TABLE system.query(
 comment on table system.query is 'It defines a query that can be executed by the search ejb.';
     
  -- Data for the table system.query -- 
-insert into system.query(name, sql) values('SpatialResult.getParcels', 'select co.id, co.name_firstpart || ''/'' || co.name_lastpart as label,  st_asewkb(co.geom_polygon) as the_geom from cadastre.cadastre_object co where type_code= ''parcel'' and status_code= ''current'' and ST_Intersects(co.geom_polygon, ST_SetSRID(ST_MakeBox3D(ST_Point(#{minx}, #{miny}),ST_Point(#{maxx}, #{maxy})), #{srid})) and st_area(co.geom_polygon)> power(5 * #{pixel_res}, 2)');
-insert into system.query(name, sql) values('SpatialResult.getParcelsPending', 'select co.id, co.name_firstpart || ''/'' || co.name_lastpart as label,  st_asewkb(co.geom_polygon) as the_geom  from cadastre.cadastre_object co  where type_code= ''parcel'' and status_code= ''pending''   and ST_Intersects(co.geom_polygon, ST_SetSRID(ST_MakeBox3D(ST_Point(#{minx}, #{miny}),ST_Point(#{maxx}, #{maxy})), #{srid})) union select co.id, co.name_firstpart || ''/'' || co.name_lastpart as label,  st_asewkb(co_t.geom_polygon) as the_geom  from cadastre.cadastre_object co inner join cadastre.cadastre_object_target co_t on co.id = co_t.cadastre_object_id and co_t.geom_polygon is not null where ST_Intersects(co_t.geom_polygon, ST_SetSRID(ST_MakeBox3D(ST_Point(#{minx}, #{miny}),ST_Point(#{maxx}, #{maxy})), #{srid}))       and co_t.transaction_id in (select id from transaction.transaction where status_code not in (''approved'')) ');
-insert into system.query(name, sql) values('SpatialResult.getSurveyControls', 'select id, label, st_asewkb(geom) as the_geom from cadastre.survey_control  where ST_Intersects(geom, ST_SetSRID(ST_MakeBox3D(ST_Point(#{minx}, #{miny}),ST_Point(#{maxx}, #{maxy})), #{srid}))');
-insert into system.query(name, sql) values('SpatialResult.getRoads', 'select id, label, st_asewkb(geom) as the_geom from cadastre.road where ST_Intersects(geom, ST_SetSRID(ST_MakeBox3D(ST_Point(#{minx}, #{miny}),ST_Point(#{maxx}, #{maxy})), #{srid})) and st_area(geom)> power(5 * #{pixel_res}, 2)');
-insert into system.query(name, sql) values('SpatialResult.getPlaceNames', 'select id, label, st_asewkb(geom) as the_geom from cadastre.place_name where ST_Intersects(geom, ST_SetSRID(ST_MakeBox3D(ST_Point(#{minx}, #{miny}),ST_Point(#{maxx}, #{maxy})), #{srid}))');
+insert into system.query(name, sql) values('SpatialResult.getParcels', 'select co.id, co.name_lastpart as label,  st_asewkb(co.geom_polygon) as the_geom from cadastre.cadastre_object co where type_code= ''parcel'' and status_code= ''current'' and ST_Intersects(co.geom_polygon, ST_SetSRID(ST_MakeBox3D(ST_Point(#{minx}, #{miny}),ST_Point(#{maxx}, #{maxy})), #{srid}))');
+insert into system.query(name, sql) values('SpatialResult.getParcelsPending', 'select co.id, co.name_lastpart as label,  st_asewkb(co.geom_polygon) as the_geom  from cadastre.cadastre_object co  where type_code= ''parcel'' and status_code= ''pending''   and ST_Intersects(co.geom_polygon, ST_SetSRID(ST_MakeBox3D(ST_Point(#{minx}, #{miny}),ST_Point(#{maxx}, #{maxy})), #{srid})) union select co.id, co.name_firstpart || ''/'' || co.name_lastpart as label,  st_asewkb(co_t.geom_polygon) as the_geom  from cadastre.cadastre_object co inner join cadastre.cadastre_object_target co_t on co.id = co_t.cadastre_object_id and co_t.geom_polygon is not null where ST_Intersects(co_t.geom_polygon, ST_SetSRID(ST_MakeBox3D(ST_Point(#{minx}, #{miny}),ST_Point(#{maxx}, #{maxy})), #{srid}))       and co_t.transaction_id in (select id from transaction.transaction where status_code not in (''approved'')) ');
 insert into system.query(name, sql) values('SpatialResult.getApplications', 'select id, nr as label, st_asewkb(location) as the_geom from application.application where ST_Intersects(location, ST_SetSRID(ST_MakeBox3D(ST_Point(#{minx}, #{miny}),ST_Point(#{maxx}, #{maxy})), #{srid}))');
 insert into system.query(name, sql) values('dynamic.informationtool.get_parcel', 'select co.id, co.name_firstpart || ''/'' || co.name_lastpart as parcel_nr,      (select string_agg(ba.name_firstpart || ''/'' || ba.name_lastpart, '','')      from administrative.ba_unit_contains_spatial_unit bas, administrative.ba_unit ba      where spatial_unit_id= co.id and bas.ba_unit_id= ba.id) as ba_units,      ( SELECT spatial_value_area.size FROM cadastre.spatial_value_area      WHERE spatial_value_area.type_code=''officialArea'' and spatial_value_area.spatial_unit_id = co.id) AS area_official_sqm,       st_asewkb(co.geom_polygon) as the_geom      from cadastre.cadastre_object co      where type_code= ''parcel'' and status_code= ''current''      and ST_Intersects(co.geom_polygon, ST_SetSRID(ST_GeomFromWKB(#{wkb_geom}), #{srid}))');
 insert into system.query(name, sql) values('dynamic.informationtool.get_parcel_pending', 'select co.id, co.name_firstpart || ''/'' || co.name_lastpart as parcel_nr,       ( SELECT spatial_value_area.size FROM cadastre.spatial_value_area         WHERE spatial_value_area.type_code=''officialArea'' and spatial_value_area.spatial_unit_id = co.id) AS area_official_sqm,   st_asewkb(co.geom_polygon) as the_geom    from cadastre.cadastre_object co  where type_code= ''parcel'' and ((status_code= ''pending''    and ST_Intersects(co.geom_polygon, ST_SetSRID(ST_GeomFromWKB(#{wkb_geom}), #{srid})))   or (co.id in (select cadastre_object_id           from cadastre.cadastre_object_target co_t inner join transaction.transaction t on co_t.transaction_id=t.id           where ST_Intersects(co_t.geom_polygon, ST_SetSRID(ST_GeomFromWKB(#{wkb_geom}), #{srid})) and t.status_code not in (''approved''))))');
-insert into system.query(name, sql) values('dynamic.informationtool.get_place_name', 'select id, label,  st_asewkb(geom) as the_geom from cadastre.place_name where ST_Intersects(geom, ST_SetSRID(ST_GeomFromWKB(#{wkb_geom}), #{srid}))');
-insert into system.query(name, sql) values('dynamic.informationtool.get_road', 'select id, label,  st_asewkb(geom) as the_geom from cadastre.road where ST_Intersects(geom, ST_SetSRID(ST_GeomFromWKB(#{wkb_geom}), #{srid}))');
 insert into system.query(name, sql) values('dynamic.informationtool.get_application', 'select id, nr,  st_asewkb(location) as the_geom from application.application where ST_Intersects(location, ST_SetSRID(ST_GeomFromWKB(#{wkb_geom}), #{srid}))');
-insert into system.query(name, sql) values('dynamic.informationtool.get_survey_control', 'select id, label,  st_asewkb(geom) as the_geom from cadastre.survey_control where ST_Intersects(geom, ST_SetSRID(ST_GeomFromWKB(#{wkb_geom}), #{srid}))');
 insert into system.query(name, sql) values('SpatialResult.getParcelsHistoricWithCurrentBA', 'select co.id, co.name_firstpart || ''/'' || co.name_lastpart as label,  st_asewkb(co.geom_polygon) as the_geom from cadastre.cadastre_object co inner join administrative.ba_unit_contains_spatial_unit ba_co on co.id = ba_co.spatial_unit_id   inner join administrative.ba_unit ba_unit on ba_unit.id= ba_co.ba_unit_id where co.type_code=''parcel'' and co.status_code= ''historic'' and ba_unit.status_code = ''current'' and ST_Intersects(co.geom_polygon, ST_SetSRID(ST_MakeBox3D(ST_Point(#{minx}, #{miny}),ST_Point(#{maxx}, #{maxy})), #{srid}))');
 insert into system.query(name, sql) values('dynamic.informationtool.get_parcel_historic_current_ba', 'select co.id, co.name_firstpart || ''/'' || co.name_lastpart as parcel_nr,         (select string_agg(ba.name_firstpart || ''/'' || ba.name_lastpart, '','')           from administrative.ba_unit_contains_spatial_unit bas, administrative.ba_unit ba           where spatial_unit_id= co.id and bas.ba_unit_id= ba.id) as ba_units,         (SELECT spatial_value_area.size      FROM cadastre.spatial_value_area           WHERE spatial_value_area.type_code=''officialArea'' and spatial_value_area.spatial_unit_id = co.id) AS area_official_sqm,         st_asewkb(co.geom_polygon) as the_geom        from cadastre.cadastre_object co inner join administrative.ba_unit_contains_spatial_unit ba_co on co.id = ba_co.spatial_unit_id   inner join administrative.ba_unit ba_unit on ba_unit.id= ba_co.ba_unit_id where co.type_code=''parcel'' and co.status_code= ''historic'' and ba_unit.status_code = ''current''       and ST_Intersects(co.geom_polygon, ST_SetSRID(ST_GeomFromWKB(#{wkb_geom}), #{srid}))');
 insert into system.query(name, sql) values('map_search.cadastre_object_by_number', 'select id, name_firstpart || ''/ '' || name_lastpart as label, st_asewkb(geom_polygon) as the_geom  from cadastre.cadastre_object  where status_code= ''current'' and compare_strings(#{search_string}, name_firstpart || '' '' || name_lastpart) limit 30');
 insert into system.query(name, sql) values('map_search.cadastre_object_by_baunit', 'select distinct co.id,  ba_unit.name_firstpart || ''/ '' || ba_unit.name_lastpart || '' > '' || co.name_firstpart || ''/ '' || co.name_lastpart as label,  st_asewkb(geom_polygon) as the_geom from cadastre.cadastre_object  co    inner join administrative.ba_unit_contains_spatial_unit bas on co.id = bas.spatial_unit_id     inner join administrative.ba_unit on ba_unit.id = bas.ba_unit_id  where (co.status_code= ''current'' or ba_unit.status_code= ''current'')    and compare_strings(#{search_string}, ba_unit.name_firstpart || '' '' || ba_unit.name_lastpart) limit 30');
 insert into system.query(name, sql) values('map_search.cadastre_object_by_baunit_owner', 'select distinct co.id,  coalesce(party.name, '''') || '' '' || coalesce(party.last_name, '''') || '' > '' || co.name_firstpart || ''/ '' || co.name_lastpart as label,  st_asewkb(co.geom_polygon) as the_geom from cadastre.cadastre_object  co    inner join administrative.ba_unit_contains_spatial_unit bas on co.id = bas.spatial_unit_id  inner join administrative.ba_unit on bas.ba_unit_id= ba_unit.id   inner join administrative.rrr on (ba_unit.id = rrr.ba_unit_id and rrr.status_code = ''current'' and rrr.type_code = ''ownership'')  inner join administrative.party_for_rrr pfr on rrr.id = pfr.rrr_id   inner join party.party on pfr.party_id= pfr.party_id    where (co.status_code= ''current'' or ba_unit.status_code= ''current'')    and compare_strings(#{search_string}, coalesce(party.name, '''') || '' '' || coalesce(party.last_name, '''')) limit 30');
 insert into system.query(name, sql, description) values('system_search.cadastre_object_by_baunit_id', 'SELECT id,  name_firstpart || ''/ '' || name_lastpart as label, st_asewkb(geom_polygon) as the_geom  FROM cadastre.cadastre_object WHERE transaction_id IN (  SELECT cot.transaction_id FROM (administrative.ba_unit_contains_spatial_unit ba_su     INNER JOIN cadastre.cadastre_object co ON ba_su.spatial_unit_id = co.id)     INNER JOIN cadastre.cadastre_object_target cot ON co.id = cot.cadastre_object_id     WHERE ba_su.ba_unit_id = #{search_string})  AND (SELECT COUNT(1) FROM administrative.ba_unit_contains_spatial_unit WHERE spatial_unit_id = cadastre_object.id) = 0 AND status_code = ''current''', 'Query used by BaUnitBean.loadNewParcels');
-
-
-
---Table system.query_field ----
-DROP TABLE IF EXISTS system.query_field CASCADE;
-CREATE TABLE system.query_field(
-    query_name varchar(100) NOT NULL,
-    index_in_query integer NOT NULL,
-    name varchar(100) NOT NULL,
-    display_value varchar(200),
-
-    -- Internal constraints
-    
-    CONSTRAINT query_field_display_value UNIQUE (query_name, display_value),
-    CONSTRAINT query_field_name UNIQUE (query_name, name),
-    CONSTRAINT query_field_pkey PRIMARY KEY (query_name,index_in_query)
-);
-
-
-comment on table system.query_field is 'It defines a field in the query. The field is returned by the select part.
-Not for all queries is needed to define the fields. It becomes important only for queries that will need to have fields that has to be localized.';
-    
- -- Data for the table system.query_field -- 
-insert into system.query_field(query_name, index_in_query, name, display_value) values('dynamic.informationtool.get_parcel', 1, 'parcel_nr', 'Parcel number::::ITALIANO');
-insert into system.query_field(query_name, index_in_query, name, display_value) values('dynamic.informationtool.get_parcel', 2, 'ba_units', 'Properties::::ITALIANO');
-insert into system.query_field(query_name, index_in_query, name, display_value) values('dynamic.informationtool.get_parcel', 3, 'area_official_sqm', 'Official area (m2)::::ITALIANO');
-insert into system.query_field(query_name, index_in_query, name) values('dynamic.informationtool.get_parcel', 0, 'id');
-insert into system.query_field(query_name, index_in_query, name) values('dynamic.informationtool.get_parcel', 4, 'the_geom');
-insert into system.query_field(query_name, index_in_query, name) values('dynamic.informationtool.get_parcel_pending', 0, 'id');
-insert into system.query_field(query_name, index_in_query, name, display_value) values('dynamic.informationtool.get_parcel_pending', 1, 'parcel_nr', 'Parcel number::::ITALIANO');
-insert into system.query_field(query_name, index_in_query, name, display_value) values('dynamic.informationtool.get_parcel_pending', 2, 'area_official_sqm', 'Official area (m2)::::ITALIANO');
-insert into system.query_field(query_name, index_in_query, name) values('dynamic.informationtool.get_parcel_pending', 3, 'the_geom');
-insert into system.query_field(query_name, index_in_query, name) values('dynamic.informationtool.get_place_name', 0, 'id');
-insert into system.query_field(query_name, index_in_query, name, display_value) values('dynamic.informationtool.get_place_name', 1, 'label', 'Name::::Nome');
-insert into system.query_field(query_name, index_in_query, name) values('dynamic.informationtool.get_place_name', 2, 'the_geom');
-insert into system.query_field(query_name, index_in_query, name) values('dynamic.informationtool.get_road', 0, 'id');
-insert into system.query_field(query_name, index_in_query, name, display_value) values('dynamic.informationtool.get_road', 1, 'label', 'Name::::Nome');
-insert into system.query_field(query_name, index_in_query, name) values('dynamic.informationtool.get_road', 2, 'the_geom');
-insert into system.query_field(query_name, index_in_query, name) values('dynamic.informationtool.get_application', 0, 'id');
-insert into system.query_field(query_name, index_in_query, name, display_value) values('dynamic.informationtool.get_application', 1, 'nr', 'Number::::Numero');
-insert into system.query_field(query_name, index_in_query, name) values('dynamic.informationtool.get_application', 2, 'the_geom');
-insert into system.query_field(query_name, index_in_query, name) values('dynamic.informationtool.get_survey_control', 0, 'id');
-insert into system.query_field(query_name, index_in_query, name, display_value) values('dynamic.informationtool.get_survey_control', 1, 'label', 'Label::::ITALIANO');
-insert into system.query_field(query_name, index_in_query, name) values('dynamic.informationtool.get_survey_control', 2, 'the_geom');
-insert into system.query_field(query_name, index_in_query, name) values('dynamic.informationtool.get_parcel_historic_current_ba', 0, 'id');
-insert into system.query_field(query_name, index_in_query, name, display_value) values('dynamic.informationtool.get_parcel_historic_current_ba', 1, 'parcel_nr', 'Parcel number::::ITALIANO');
-insert into system.query_field(query_name, index_in_query, name, display_value) values('dynamic.informationtool.get_parcel_historic_current_ba', 2, 'ba_units', 'Properties::::ITALIANO');
-insert into system.query_field(query_name, index_in_query, name, display_value) values('dynamic.informationtool.get_parcel_historic_current_ba', 3, 'area_official_sqm', 'Official area (m2)::::ITALIANO');
-insert into system.query_field(query_name, index_in_query, name) values('dynamic.informationtool.get_parcel_historic_current_ba', 4, 'the_geom');
+insert into system.query(name, sql) values('SpatialResult.getRegion', 'select sup.id, sup.label, st_asewkb(sup.geom) as the_geom from cadastre.spatial_unit_group as sup where hierarchy_level=1 and ST_Intersects(sup.geom, ST_SetSRID(ST_MakeBox3D(ST_Point(#{minx}, #{miny}),ST_Point(#{maxx}, #{maxy})), #{srid}))');
+insert into system.query(name, sql) values('SpatialResult.getDistrict', 'select sup.id, sup.label, st_asewkb(sup.geom) as the_geom from cadastre.spatial_unit_group as sup where hierarchy_level=2 and ST_Intersects(sup.geom, ST_SetSRID(ST_MakeBox3D(ST_Point(#{minx}, #{miny}),ST_Point(#{maxx}, #{maxy})), #{srid}))');
+insert into system.query(name, sql) values('SpatialResult.getSection', 'select sup.id, sup.label, st_asewkb(sup.geom) as the_geom from cadastre.spatial_unit_group as sup where hierarchy_level=3 and ST_Intersects(sup.geom, ST_SetSRID(ST_MakeBox3D(ST_Point(#{minx}, #{miny}),ST_Point(#{maxx}, #{maxy})), #{srid}))');
+insert into system.query(name, sql) values('SpatialResult.getBlock', 'select sup.id, sup.label, st_asewkb(sup.geom) as the_geom from cadastre.spatial_unit_group as sup where hierarchy_level=4 and ST_Intersects(sup.geom, ST_SetSRID(ST_MakeBox3D(ST_Point(#{minx}, #{miny}),ST_Point(#{maxx}, #{maxy})), #{srid}))');
+insert into system.query(name, sql) values('dynamic.informationtool.get_region', 'select sup.id, sup.label,  st_asewkb(sup.geom) as the_geom from cadastre.spatial_unit_group as sup where hierarchy_level=1 and ST_Intersects(sup.geom, ST_SetSRID(ST_GeomFromWKB(#{wkb_geom}), #{srid}))');
+insert into system.query(name, sql) values('dynamic.informationtool.get_district', 'select sup.id, sup.label,  st_asewkb(sup.geom) as the_geom from cadastre.spatial_unit_group as sup where  hierarchy_level=2 and ST_Intersects(sup.geom, ST_SetSRID(ST_GeomFromWKB(#{wkb_geom}), #{srid}))');
+insert into system.query(name, sql) values('dynamic.informationtool.get_section', 'select sup.id, sup.label,  st_asewkb(sup.geom) as the_geom  from cadastre.spatial_unit_group as sup where  hierarchy_level=3 and ST_Intersects(sup.geom, ST_SetSRID(ST_GeomFromWKB(#{wkb_geom}), #{srid})) ');
+insert into system.query(name, sql) values('dynamic.informationtool.get_block', 'select sup.id, sup.label,  st_asewkb(sup.geom) as the_geom from cadastre.spatial_unit_group as sup where  hierarchy_level=4 and  ST_Intersects(sup.geom, ST_SetSRID(ST_GeomFromWKB(#{wkb_geom}), #{srid}))');
 
 
 
@@ -5041,7 +4994,7 @@ CREATE TABLE cadastre.cadastre_object_node_target(
     node_id varchar(40) NOT NULL,
     geom GEOMETRY NOT NULL
         CONSTRAINT enforce_dims_geom CHECK (st_ndims(geom) = 2),
-        CONSTRAINT enforce_srid_geom CHECK (st_srid(geom) = 2193),
+        CONSTRAINT enforce_srid_geom CHECK (st_srid(geom) = 32630),
         CONSTRAINT enforce_valid_geom CHECK (st_isvalid(geom)),
         CONSTRAINT enforce_geotype_geom CHECK (geometrytype(geom) = 'POINT'::text OR geom IS NULL),
     rowidentifier varchar(40) NOT NULL DEFAULT (uuid_generate_v1()),
@@ -5080,7 +5033,7 @@ CREATE TABLE cadastre.cadastre_object_node_target_historic
     node_id varchar(40),
     geom GEOMETRY
         CONSTRAINT enforce_dims_geom CHECK (st_ndims(geom) = 2),
-        CONSTRAINT enforce_srid_geom CHECK (st_srid(geom) = 2193),
+        CONSTRAINT enforce_srid_geom CHECK (st_srid(geom) = 32630),
         CONSTRAINT enforce_valid_geom CHECK (st_isvalid(geom)),
         CONSTRAINT enforce_geotype_geom CHECK (geometrytype(geom) = 'POINT'::text OR geom IS NULL),
     rowidentifier varchar(40),
@@ -5182,6 +5135,58 @@ comment on table system.map_search_option is 'This table contains information ab
 insert into system.map_search_option(code, title, query_name, active, min_search_str_len, zoom_in_buffer) values('NUMBER', 'Number', 'map_search.cadastre_object_by_number', true, 3, 50);
 insert into system.map_search_option(code, title, query_name, active, min_search_str_len, zoom_in_buffer) values('BAUNIT', 'Property number', 'map_search.cadastre_object_by_baunit', true, 3, 50);
 insert into system.map_search_option(code, title, query_name, active, min_search_str_len, zoom_in_buffer) values('OWNER_OF_BAUNIT', 'Property owner', 'map_search.cadastre_object_by_baunit_owner', true, 3, 50);
+
+
+
+--Table system.query_field ----
+DROP TABLE IF EXISTS system.query_field CASCADE;
+CREATE TABLE system.query_field(
+    query_name varchar(100) NOT NULL,
+    index_in_query integer NOT NULL,
+    name varchar(100) NOT NULL,
+    display_value varchar(200),
+
+    -- Internal constraints
+    
+    CONSTRAINT query_field_display_value UNIQUE (query_name, display_value),
+    CONSTRAINT query_field_name UNIQUE (query_name, name),
+    CONSTRAINT query_field_pkey PRIMARY KEY (query_name,index_in_query)
+);
+
+
+comment on table system.query_field is 'It defines a field in the query. The field is returned by the select part.
+Not for all queries is needed to define the fields. It becomes important only for queries that will need to have fields that has to be localized.';
+    
+ -- Data for the table system.query_field -- 
+insert into system.query_field(query_name, index_in_query, name, display_value) values('dynamic.informationtool.get_parcel', 1, 'parcel_nr', 'Parcel number::::ITALIANO');
+insert into system.query_field(query_name, index_in_query, name, display_value) values('dynamic.informationtool.get_parcel', 2, 'ba_units', 'Properties::::ITALIANO');
+insert into system.query_field(query_name, index_in_query, name, display_value) values('dynamic.informationtool.get_parcel', 3, 'area_official_sqm', 'Official area (m2)::::ITALIANO');
+insert into system.query_field(query_name, index_in_query, name) values('dynamic.informationtool.get_parcel', 0, 'id');
+insert into system.query_field(query_name, index_in_query, name) values('dynamic.informationtool.get_parcel', 4, 'the_geom');
+insert into system.query_field(query_name, index_in_query, name) values('dynamic.informationtool.get_parcel_pending', 0, 'id');
+insert into system.query_field(query_name, index_in_query, name, display_value) values('dynamic.informationtool.get_parcel_pending', 1, 'parcel_nr', 'Parcel number::::ITALIANO');
+insert into system.query_field(query_name, index_in_query, name, display_value) values('dynamic.informationtool.get_parcel_pending', 2, 'area_official_sqm', 'Official area (m2)::::ITALIANO');
+insert into system.query_field(query_name, index_in_query, name) values('dynamic.informationtool.get_parcel_pending', 3, 'the_geom');
+insert into system.query_field(query_name, index_in_query, name) values('dynamic.informationtool.get_application', 0, 'id');
+insert into system.query_field(query_name, index_in_query, name, display_value) values('dynamic.informationtool.get_application', 1, 'nr', 'Number::::Numero');
+insert into system.query_field(query_name, index_in_query, name) values('dynamic.informationtool.get_application', 2, 'the_geom');
+insert into system.query_field(query_name, index_in_query, name) values('dynamic.informationtool.get_parcel_historic_current_ba', 0, 'id');
+insert into system.query_field(query_name, index_in_query, name, display_value) values('dynamic.informationtool.get_parcel_historic_current_ba', 1, 'parcel_nr', 'Parcel number::::ITALIANO');
+insert into system.query_field(query_name, index_in_query, name, display_value) values('dynamic.informationtool.get_parcel_historic_current_ba', 2, 'ba_units', 'Properties::::ITALIANO');
+insert into system.query_field(query_name, index_in_query, name, display_value) values('dynamic.informationtool.get_parcel_historic_current_ba', 3, 'area_official_sqm', 'Official area (m2)::::ITALIANO');
+insert into system.query_field(query_name, index_in_query, name) values('dynamic.informationtool.get_parcel_historic_current_ba', 4, 'the_geom');
+insert into system.query_field(query_name, index_in_query, name, display_value) values('dynamic.informationtool.get_region', 0, 'id', '');
+insert into system.query_field(query_name, index_in_query, name, display_value) values('dynamic.informationtool.get_region', 1, 'label', 'Region');
+insert into system.query_field(query_name, index_in_query, name) values('dynamic.informationtool.get_region', 2, 'the_geom');
+insert into system.query_field(query_name, index_in_query, name, display_value) values('dynamic.informationtool.get_district', 0, 'id', '');
+insert into system.query_field(query_name, index_in_query, name, display_value) values('dynamic.informationtool.get_district', 1, 'label', 'District');
+insert into system.query_field(query_name, index_in_query, name) values('dynamic.informationtool.get_district', 2, 'the_geom');
+insert into system.query_field(query_name, index_in_query, name) values('dynamic.informationtool.get_section', 0, 'id');
+insert into system.query_field(query_name, index_in_query, name, display_value) values('dynamic.informationtool.get_section', 1, 'label', 'Section');
+insert into system.query_field(query_name, index_in_query, name) values('dynamic.informationtool.get_section', 2, 'the_geom');
+insert into system.query_field(query_name, index_in_query, name) values('dynamic.informationtool.get_block', 0, 'id');
+insert into system.query_field(query_name, index_in_query, name, display_value) values('dynamic.informationtool.get_block', 1, 'label', 'Block');
+insert into system.query_field(query_name, index_in_query, name) values('dynamic.informationtool.get_block', 2, 'the_geom');
 
 
 
