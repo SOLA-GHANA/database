@@ -12,6 +12,15 @@ st_transform(st_geometryn(l.geom,1), 32630) as geom_polygon,
 from staging_area.shape_lot l, staging_area.shape_block b
 where l.lotno != '9999' and l.geom && b.geom and st_intersects(st_centroid(l.geom), b.geom);
 
+-- Create a view that is used to retrieve duplications
+drop view if exists staging_area.parcel_duplications;
+create view staging_area.parcel_duplications as 
+select name_firstpart as region_section_block, name_lastpart as parcel_nr, count(*) as nr_of_duplications
+from staging_area.parcel
+group by name_firstpart, name_lastpart 
+having count(*)>1
+order by 1,2;
+
 --Empty the table where the data about regions, districts, rections and blocks are stored
 delete from cadastre.spatial_unit_group;
 --Empty the table where the data about parcels are stored
