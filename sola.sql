@@ -5260,6 +5260,11 @@ CREATE TABLE party.party_id(
     party_id varchar(40) NOT NULL,
     type_code varchar(20) NOT NULL,
     id_number integer NOT NULL,
+    rowidentifier varchar(40) NOT NULL DEFAULT (uuid_generate_v1()),
+    rowversion integer NOT NULL DEFAULT (0),
+    change_action char(1) NOT NULL DEFAULT ('i'),
+    change_user varchar(50),
+    change_time timestamp NOT NULL DEFAULT (now()),
 
     -- Internal constraints
     
@@ -5268,8 +5273,45 @@ CREATE TABLE party.party_id(
 );
 
 
+
+-- Index party_id_index_on_rowidentifier  --
+CREATE INDEX party_id_index_on_rowidentifier ON party.party_id (rowidentifier);
+    
+
 comment on table party.party_id is 'Ghana extension: The list of ids that are associated with a party.
 In the generic model, there was space only for one id defined by the columns id_type_code and id_number. These columns are removed from the party.';
+    
+DROP TRIGGER IF EXISTS __track_changes ON party.party_id CASCADE;
+CREATE TRIGGER __track_changes BEFORE UPDATE OR INSERT
+   ON party.party_id FOR EACH ROW
+   EXECUTE PROCEDURE f_for_trg_track_changes();
+    
+
+----Table party.party_id_historic used for the history of data of table party.party_id ---
+DROP TABLE IF EXISTS party.party_id_historic CASCADE;
+CREATE TABLE party.party_id_historic
+(
+    id varchar(40),
+    party_id varchar(40),
+    type_code varchar(20),
+    id_number integer,
+    rowidentifier varchar(40),
+    rowversion integer,
+    change_action char(1),
+    change_user varchar(50),
+    change_time timestamp,
+    change_time_valid_until TIMESTAMP NOT NULL default NOW()
+);
+
+
+-- Index party_id_historic_index_on_rowidentifier  --
+CREATE INDEX party_id_historic_index_on_rowidentifier ON party.party_id_historic (rowidentifier);
+    
+
+DROP TRIGGER IF EXISTS __track_history ON party.party_id CASCADE;
+CREATE TRIGGER __track_history AFTER UPDATE OR DELETE
+   ON party.party_id FOR EACH ROW
+   EXECUTE PROCEDURE f_for_trg_track_history();
     
 
 ALTER TABLE source.spatial_source ADD CONSTRAINT spatial_source_type_code_fk0 
