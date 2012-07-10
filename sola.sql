@@ -1109,7 +1109,6 @@ CREATE TABLE party.party(
 
     -- Internal constraints
     
-    CONSTRAINT party_id_is_present CHECK ((id_type_code is null and id_number is null) or ((id_type_code is not null and id_number is not null))),
     CONSTRAINT party_pkey PRIMARY KEY (id)
 );
 
@@ -2700,7 +2699,6 @@ CREATE TABLE application.application(
     total_fee numeric(20, 2) NOT NULL DEFAULT (0),
     total_amount_paid numeric(20, 2) NOT NULL DEFAULT (0),
     action_code varchar(20) NOT NULL DEFAULT ('lodge'),
-    action_notes varchar(255),
     status_code varchar(20) NOT NULL DEFAULT ('lodged'),
     request_type_code varchar(20) NOT NULL,
     rowidentifier varchar(40) NOT NULL DEFAULT (uuid_generate_v1()),
@@ -2754,7 +2752,6 @@ CREATE TABLE application.application_historic
     total_fee numeric(20, 2),
     total_amount_paid numeric(20, 2),
     action_code varchar(20),
-    action_notes varchar(255),
     status_code varchar(20),
     request_type_code varchar(20),
     rowidentifier varchar(40),
@@ -5116,13 +5113,13 @@ CREATE TABLE application.application_party(
 
     -- Internal constraints
     
-    CONSTRAINT application_party_application_id_unique UNIQUE (application_id),
-    CONSTRAINT application_party_party_id_unique UNIQUE (party_id),
+    CONSTRAINT application_party_logical_key UNIQUE (application_id, party_id),
     CONSTRAINT application_party_pkey PRIMARY KEY (id)
 );
 
 
-comment on table application.application_party is '';
+comment on table application.application_party is 'Ghana extension: For each application can be a number of parties that can have different roles.
+In generic model, there were two parties referenced directly agent_id and contact_person_id. These two parties can be defined through this table so they are removed from the application.';
     
 --Table application.application_comment ----
 DROP TABLE IF EXISTS application.application_comment CASCADE;
@@ -5173,11 +5170,7 @@ CREATE TABLE application.fee_type(
 comment on table application.fee_type is 'Ghana extension: The types of fees applicable for a certain request.';
     
  -- Data for the table application.fee_type -- 
-insert into application.fee_type(code, display_value, status, description) values('lodged', 'Lodged::::Registrata', 'c', 'Application has been lodged and officially received by land office::::La pratica registrata e formalmente ricevuta da ufficio territoriale');
-insert into application.fee_type(code, display_value, status) values('approved', 'Approved::::ITALIANO', 'c');
-insert into application.fee_type(code, display_value, status) values('anulled', 'Anulled::::Anullato', 'c');
-insert into application.fee_type(code, display_value, status) values('completed', 'Completed::::ITALIANO', 'c');
-insert into application.fee_type(code, display_value, status) values('requisitioned', 'Requisitioned::::ITALIANO', 'c');
+insert into application.fee_type(code, display_value, status) values('dutyStamp', 'Duty stamp tax', 'c');
 
 
 
@@ -5198,8 +5191,8 @@ CREATE TABLE application.application_fee(
 
     -- Internal constraints
     
-    CONSTRAINT application_fee_application_id_unique UNIQUE (application_id),
-    CONSTRAINT application_fee_fee_code_unique UNIQUE (fee_code),
+    CONSTRAINT application_fee_logical_key UNIQUE (application_id, fee_code),
+    CONSTRAINT application_fee_amount_check CHECK (paid_amount <= total_amount),
     CONSTRAINT application_fee_pkey PRIMARY KEY (id)
 );
 
@@ -5209,7 +5202,8 @@ CREATE TABLE application.application_fee(
 CREATE INDEX application_fee_index_on_rowidentifier ON application.application_fee (rowidentifier);
     
 
-comment on table application.application_fee is 'Ghana extension';
+comment on table application.application_fee is 'Ghana extension: The fees that are applicable to an application.
+The fees that are listed here are already calculated by other means and they are only recorded.';
     
 DROP TRIGGER IF EXISTS __track_changes ON application.application_fee CASCADE;
 CREATE TRIGGER __track_changes BEFORE UPDATE OR INSERT
@@ -5245,19 +5239,19 @@ CREATE TRIGGER __track_history AFTER UPDATE OR DELETE
    ON application.application_fee FOR EACH ROW
    EXECUTE PROCEDURE f_for_trg_track_history();
     
---Table public.application.request_type_fee_type ----
-DROP TABLE IF EXISTS public.application.request_type_fee_type CASCADE;
-CREATE TABLE public.application.request_type_fee_type(
+--Table application.request_type_fee_type ----
+DROP TABLE IF EXISTS application.request_type_fee_type CASCADE;
+CREATE TABLE application.request_type_fee_type(
     request_code varchar(20) NOT NULL,
     fee_code varchar(20) NOT NULL,
 
     -- Internal constraints
     
-    CONSTRAINT application.request_type_fee_type_pkey PRIMARY KEY (request_code,fee_code)
+    CONSTRAINT request_type_fee_type_pkey PRIMARY KEY (request_code,fee_code)
 );
 
 
-comment on table public.application.request_type_fee_type is 'Ghana extension: The types of fees applicable to a given request type';
+comment on table application.request_type_fee_type is 'Ghana extension: The types of fees applicable to a given request type';
     
 --Table party.party_id ----
 DROP TABLE IF EXISTS party.party_id CASCADE;
@@ -5269,9 +5263,7 @@ CREATE TABLE party.party_id(
 
     -- Internal constraints
     
-    CONSTRAINT party_id_party_id_unique UNIQUE (party_id),
-    CONSTRAINT party_id_type_code_unique UNIQUE (type_code),
-    CONSTRAINT party_id_id_number_unique UNIQUE (id_number),
+    CONSTRAINT party_id_logical_key UNIQUE (party_id, type_code, id_number),
     CONSTRAINT party_id_pkey PRIMARY KEY (id)
 );
 
@@ -5772,13 +5764,13 @@ ALTER TABLE application.application_fee ADD CONSTRAINT application_fee_fee_code_
             FOREIGN KEY (fee_code) REFERENCES application.fee_type(code) ON UPDATE CASCADE ON DELETE RESTRICT;
 CREATE INDEX application_fee_fee_code_fk122_ind ON application.application_fee (fee_code);
 
-ALTER TABLE public.application.request_type_fee_type ADD CONSTRAINT application.request_type_fee_type_request_code_fk123 
+ALTER TABLE application.request_type_fee_type ADD CONSTRAINT request_type_fee_type_request_code_fk123 
             FOREIGN KEY (request_code) REFERENCES application.request_type(code) ON UPDATE CASCADE ON DELETE CASCADE;
-CREATE INDEX application.request_type_fee_type_request_code_fk123_ind ON public.application.request_type_fee_type (request_code);
+CREATE INDEX request_type_fee_type_request_code_fk123_ind ON application.request_type_fee_type (request_code);
 
-ALTER TABLE public.application.request_type_fee_type ADD CONSTRAINT application.request_type_fee_type_fee_code_fk124 
+ALTER TABLE application.request_type_fee_type ADD CONSTRAINT request_type_fee_type_fee_code_fk124 
             FOREIGN KEY (fee_code) REFERENCES application.fee_type(code) ON UPDATE CASCADE ON DELETE CASCADE;
-CREATE INDEX application.request_type_fee_type_fee_code_fk124_ind ON public.application.request_type_fee_type (fee_code);
+CREATE INDEX request_type_fee_type_fee_code_fk124_ind ON application.request_type_fee_type (fee_code);
 
 ALTER TABLE party.party ADD CONSTRAINT party_postal_address_id_fk125 
             FOREIGN KEY (postal_address_id) REFERENCES address.address(id) ON UPDATE CASCADE ON DELETE RESTRICT;
@@ -5910,8 +5902,8 @@ begin
   update application.application set 
     total_fee = tt.total_amount,
     total_amount_paid = tt.paid_amount
-  from (select sum(total_amount) as total_amount, sum(paid_amount) as paid_amount application.application_fee af
-  where af.application_id = new.application_id) tt
+  from (select sum(total_amount) as total_amount, sum(paid_amount) as paid_amount from application.application_fee af
+    where af.application_id = new.application_id) tt
   where id= new.application_id;
   return new;
 end;
@@ -5987,20 +5979,12 @@ CREATE VIEW system.user_roles AS SELECT u.username, rg.approle_code as rolename
 -------View application.application_log ---------
 DROP VIEW IF EXISTS application.application_log CASCADE;
 CREATE VIEW application.application_log AS select uuid_generate_v1()::varchar as id, id as application_id, action_code as action_type, '' as service_order, null as service_type, change_time, 
-(select first_name || ' ' || last_name from system.appuser where id = application.change_user) as user_fullname, action_notes
+(select first_name || ' ' || last_name from system.appuser where id = application.change_user) as user_fullname
 from application.application
 union
 select uuid_generate_v1()::varchar as id, id as application_id, action_code, '' as service_order, null as service_type, change_time, 
-(select first_name || ' ' || last_name from system.appuser where id = application_historic.change_user) as user_fullname, action_notes
-from application.application_historic 
-union
-select uuid_generate_v1()::varchar as id, application_id, status_code, service_order::varchar, request_type_code, change_time, 
-(select first_name || ' ' || last_name from system.appuser where id = service.change_user) as user_fullname, action_notes
-from application.service
-union 
-select uuid_generate_v1()::varchar as id, application_id, status_code, service_order::varchar, request_type_code, change_time, 
-(select first_name || ' ' || last_name from system.appuser where id = service_historic.change_user) as user_fullname, action_notes
-from application.service_historic;;
+(select first_name || ' ' || last_name from system.appuser where id = application_historic.change_user) as user_fullname
+from application.application_historic;;
 
 -------View system.br_current ---------
 DROP VIEW IF EXISTS system.br_current CASCADE;
