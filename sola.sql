@@ -5410,6 +5410,60 @@ FLOSS SOLA Extension
 LADM Definition
 Not Applicable';
     
+--Table application.application_spatial_unit ----
+DROP TABLE IF EXISTS application.application_spatial_unit CASCADE;
+CREATE TABLE application.application_spatial_unit(
+    application_id varchar(40) NOT NULL,
+    spatial_unit_id varchar(40) NOT NULL,
+    rowidentifier varchar(40) NOT NULL DEFAULT (uuid_generate_v1()),
+    rowversion integer NOT NULL DEFAULT (0),
+    change_action char(1) NOT NULL DEFAULT ('i'),
+    change_user varchar(50),
+    change_time timestamp NOT NULL DEFAULT (now()),
+
+    -- Internal constraints
+    
+    CONSTRAINT application_spatial_unit_pkey PRIMARY KEY (application_id,spatial_unit_id)
+);
+
+
+
+-- Index application_spatial_unit_index_on_rowidentifier  --
+CREATE INDEX application_spatial_unit_index_on_rowidentifier ON application.application_spatial_unit (rowidentifier);
+    
+
+comment on table application.application_spatial_unit is '';
+    
+DROP TRIGGER IF EXISTS __track_changes ON application.application_spatial_unit CASCADE;
+CREATE TRIGGER __track_changes BEFORE UPDATE OR INSERT
+   ON application.application_spatial_unit FOR EACH ROW
+   EXECUTE PROCEDURE f_for_trg_track_changes();
+    
+
+----Table application.application_spatial_unit_historic used for the history of data of table application.application_spatial_unit ---
+DROP TABLE IF EXISTS application.application_spatial_unit_historic CASCADE;
+CREATE TABLE application.application_spatial_unit_historic
+(
+    application_id varchar(40),
+    spatial_unit_id varchar(40),
+    rowidentifier varchar(40),
+    rowversion integer,
+    change_action char(1),
+    change_user varchar(50),
+    change_time timestamp,
+    change_time_valid_until TIMESTAMP NOT NULL default NOW()
+);
+
+
+-- Index application_spatial_unit_historic_index_on_rowidentifier  --
+CREATE INDEX application_spatial_unit_historic_index_on_rowidentifier ON application.application_spatial_unit_historic (rowidentifier);
+    
+
+DROP TRIGGER IF EXISTS __track_history ON application.application_spatial_unit CASCADE;
+CREATE TRIGGER __track_history AFTER UPDATE OR DELETE
+   ON application.application_spatial_unit FOR EACH ROW
+   EXECUTE PROCEDURE f_for_trg_track_history();
+    
 
 ALTER TABLE source.spatial_source ADD CONSTRAINT spatial_source_type_code_fk0 
             FOREIGN KEY (type_code) REFERENCES source.spatial_source_type(code) ON UPDATE CASCADE ON DELETE RESTRICT;
@@ -5950,6 +6004,14 @@ CREATE INDEX application_action_type_start_status_type_code_fk133_ind ON applica
 ALTER TABLE application.action_data_field_type ADD CONSTRAINT action_data_field_type_type_code_fk134 
             FOREIGN KEY (type_code) REFERENCES application.data_type(code) ON UPDATE CASCADE ON DELETE RESTRICT;
 CREATE INDEX action_data_field_type_type_code_fk134_ind ON application.action_data_field_type (type_code);
+
+ALTER TABLE application.application_spatial_unit ADD CONSTRAINT application_spatial_unit_application_id_fk135 
+            FOREIGN KEY (application_id) REFERENCES application.application(id) ON UPDATE CASCADE ON DELETE CASCADE;
+CREATE INDEX application_spatial_unit_application_id_fk135_ind ON application.application_spatial_unit (application_id);
+
+ALTER TABLE application.application_spatial_unit ADD CONSTRAINT application_spatial_unit_spatial_unit_id_fk136 
+            FOREIGN KEY (spatial_unit_id) REFERENCES cadastre.spatial_unit(id) ON UPDATE CASCADE ON DELETE CASCADE;
+CREATE INDEX application_spatial_unit_spatial_unit_id_fk136_ind ON application.application_spatial_unit (spatial_unit_id);
 --Generate triggers for tables --
 -- triggers for table source.source -- 
 
@@ -6145,13 +6207,11 @@ CREATE VIEW system.user_roles AS SELECT u.username, rg.approle_code as rolename
 
 -------View application.application_log ---------
 DROP VIEW IF EXISTS application.application_log CASCADE;
-CREATE VIEW application.application_log AS select uuid_generate_v1()::varchar as id, id as application_id, action_code as action_type, '' as service_order, null as service_type, change_time, 
-(select first_name || ' ' || last_name from system.appuser where id = application.change_user) as user_fullname
-from application.application
-union
-select uuid_generate_v1()::varchar as id, id as application_id, action_code, '' as service_order, null as service_type, change_time, 
-(select first_name || ' ' || last_name from system.appuser where id = application_historic.change_user) as user_fullname
-from application.application_historic;;
+CREATE VIEW application.application_log AS SELECT a_a.id, a_s.application_id, a_a.type_code AS action_type, a_s.type_code AS status_type, a_a.remarks, a_a.change_time, 
+(appuser.first_name || ' ') || appuser.last_name AS user_fullname
+   FROM application.application_action a_a
+   JOIN application.application_status a_s ON a_a.status_id = a_s.id
+   JOIN system.appuser ON a_a.change_user = appuser.id;
 
 -------View system.br_current ---------
 DROP VIEW IF EXISTS system.br_current CASCADE;
