@@ -4295,7 +4295,7 @@ CREATE TRIGGER __track_history AFTER UPDATE OR DELETE
 DROP TABLE IF EXISTS transaction.transaction CASCADE;
 CREATE TABLE transaction.transaction(
     id varchar(40) NOT NULL,
-    from_service_id varchar(40),
+    from_application_id varchar(40) NOT NULL,
     status_code varchar(20) NOT NULL DEFAULT ('pending'),
     approval_datetime timestamp,
     rowidentifier varchar(40) NOT NULL DEFAULT (uuid_generate_v1()),
@@ -4306,7 +4306,7 @@ CREATE TABLE transaction.transaction(
 
     -- Internal constraints
     
-    CONSTRAINT transaction_from_service_id_unique UNIQUE (from_service_id),
+    CONSTRAINT transaction_from_application_id_unique UNIQUE (from_application_id),
     CONSTRAINT transaction_pkey PRIMARY KEY (id)
 );
 
@@ -4329,7 +4329,7 @@ DROP TABLE IF EXISTS transaction.transaction_historic CASCADE;
 CREATE TABLE transaction.transaction_historic
 (
     id varchar(40),
-    from_service_id varchar(40),
+    from_application_id varchar(40),
     status_code varchar(20),
     approval_datetime timestamp,
     rowidentifier varchar(40),
@@ -6012,6 +6012,10 @@ CREATE INDEX application_spatial_unit_application_id_fk135_ind ON application.ap
 ALTER TABLE application.application_spatial_unit ADD CONSTRAINT application_spatial_unit_spatial_unit_id_fk136 
             FOREIGN KEY (spatial_unit_id) REFERENCES cadastre.spatial_unit(id) ON UPDATE CASCADE ON DELETE CASCADE;
 CREATE INDEX application_spatial_unit_spatial_unit_id_fk136_ind ON application.application_spatial_unit (spatial_unit_id);
+
+ALTER TABLE transaction.transaction ADD CONSTRAINT transaction_from_application_id_fk137 
+            FOREIGN KEY (from_application_id) REFERENCES application.application(id) ON UPDATE CASCADE ON DELETE RESTRICT;
+CREATE INDEX transaction_from_application_id_fk137_ind ON transaction.transaction (from_application_id);
 --Generate triggers for tables --
 -- triggers for table source.source -- 
 
