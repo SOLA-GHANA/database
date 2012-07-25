@@ -1092,8 +1092,8 @@ CREATE TABLE party.party(
     type_code varchar(20) NOT NULL,
     name varchar(255),
     last_name varchar(50),
-    fathers_name varchar(50),
-    fathers_last_name varchar(50),
+    previous_name varchar(50),
+    previous_last_name varchar(50),
     alias varchar(50),
     gender_code varchar(20),
     physical_address_id varchar(40),
@@ -1103,6 +1103,8 @@ CREATE TABLE party.party(
     phone varchar(15),
     fax varchar(15),
     preferred_communication_code varchar(20),
+    nationality_code varchar(20),
+    dob_doi date,
     rowidentifier varchar(40) NOT NULL DEFAULT (uuid_generate_v1()),
     rowversion integer NOT NULL DEFAULT (0),
     change_action char(1) NOT NULL DEFAULT ('i'),
@@ -1142,8 +1144,8 @@ CREATE TABLE party.party_historic
     type_code varchar(20),
     name varchar(255),
     last_name varchar(50),
-    fathers_name varchar(50),
-    fathers_last_name varchar(50),
+    previous_name varchar(50),
+    previous_last_name varchar(50),
     alias varchar(50),
     gender_code varchar(20),
     physical_address_id varchar(40),
@@ -1153,6 +1155,8 @@ CREATE TABLE party.party_historic
     phone varchar(15),
     fax varchar(15),
     preferred_communication_code varchar(20),
+    nationality_code varchar(20),
+    dob_doi date,
     rowidentifier varchar(40),
     rowversion integer,
     change_action char(1),
@@ -3782,7 +3786,6 @@ insert into cadastre.cadastre_object_type(code, display_value, status) values('s
 DROP TABLE IF EXISTS cadastre.cadastre_object CASCADE;
 CREATE TABLE cadastre.cadastre_object(
     id varchar(40) NOT NULL,
-    block_id varchar(40) NOT NULL,
     type_code varchar(20) NOT NULL DEFAULT ('parcel'),
     building_unit_type_code varchar(20),
     approval_datetime timestamp,
@@ -3799,7 +3802,7 @@ CREATE TABLE cadastre.cadastre_object(
     transaction_id varchar(40) NOT NULL,
     upn varchar(30),
     description varchar(200),
-    legacy_nr varchar(20),
+    legacy_lot_nr varchar(20),
     legacy_property_nr varchar(20),
     found_in_cadastre_object_id varchar(40),
     rowidentifier varchar(40) NOT NULL DEFAULT (uuid_generate_v1()),
@@ -3836,7 +3839,6 @@ DROP TABLE IF EXISTS cadastre.cadastre_object_historic CASCADE;
 CREATE TABLE cadastre.cadastre_object_historic
 (
     id varchar(40),
-    block_id varchar(40),
     type_code varchar(20),
     building_unit_type_code varchar(20),
     approval_datetime timestamp,
@@ -3853,7 +3855,7 @@ CREATE TABLE cadastre.cadastre_object_historic
     transaction_id varchar(40),
     upn varchar(30),
     description varchar(200),
-    legacy_nr varchar(20),
+    legacy_lot_nr varchar(20),
     legacy_property_nr varchar(20),
     found_in_cadastre_object_id varchar(40),
     rowidentifier varchar(40),
@@ -5322,6 +5324,8 @@ CREATE TABLE source.deed(
     forward_reference_id varchar(40),
     backward_reference_id varchar(40),
     file_no varchar(50),
+    property_nr varchar(30),
+    land_use_code varchar(20),
 
     -- Internal constraints
     
@@ -5434,6 +5438,51 @@ CREATE INDEX block_index_on_the_geom ON cadastre.block using gist(the_geom);
     
 
 comment on table cadastre.block is '';
+    
+--Table source.land_use_type ----
+DROP TABLE IF EXISTS source.land_use_type CASCADE;
+CREATE TABLE source.land_use_type(
+    code varchar(20) NOT NULL,
+    display_value varchar(250) NOT NULL,
+    status char(1) NOT NULL DEFAULT ('t'),
+    description varchar(555),
+
+    -- Internal constraints
+    
+    CONSTRAINT land_use_type_display_value_unique UNIQUE (display_value),
+    CONSTRAINT land_use_type_pkey PRIMARY KEY (code)
+);
+
+
+comment on table source.land_use_type is 'Ghana extension: It contains the list of possible land use types.';
+    
+ -- Data for the table source.land_use_type -- 
+insert into source.land_use_type(code, display_value, status) values('residential', 'Residential', 'c');
+insert into source.land_use_type(code, display_value, status) values('commercial', 'Commercial', 'c');
+insert into source.land_use_type(code, display_value, status) values('industrial', 'Industrial', 'c');
+insert into source.land_use_type(code, display_value, status) values('educational', 'Educational', 'c');
+insert into source.land_use_type(code, display_value, status) values('agricultural', 'Agricultural', 'c');
+insert into source.land_use_type(code, display_value, status) values('recreational', 'Recreational', 'c');
+insert into source.land_use_type(code, display_value, status) values('civic-cultural', 'Civic & Cultural', 'c');
+
+
+
+--Table party.country ----
+DROP TABLE IF EXISTS party.country CASCADE;
+CREATE TABLE party.country(
+    code varchar(20) NOT NULL,
+    display_value varchar(250) NOT NULL,
+    status char(1) NOT NULL DEFAULT ('t'),
+    description varchar(555),
+
+    -- Internal constraints
+    
+    CONSTRAINT country_display_value_unique UNIQUE (display_value),
+    CONSTRAINT country_pkey PRIMARY KEY (code)
+);
+
+
+comment on table party.country is 'Ghana extension: List of countries that are used in the system.';
     
 
 ALTER TABLE source.spatial_source ADD CONSTRAINT spatial_source_type_code_fk0 
@@ -6016,9 +6065,13 @@ ALTER TABLE cadastre.cadastre_object ADD CONSTRAINT cadastre_object_found_in_cad
             FOREIGN KEY (found_in_cadastre_object_id) REFERENCES cadastre.cadastre_object(id) ON UPDATE CASCADE ON DELETE RESTRICT;
 CREATE INDEX cadastre_object_found_in_cadastre_object_id_fk144_ind ON cadastre.cadastre_object (found_in_cadastre_object_id);
 
-ALTER TABLE cadastre.cadastre_object ADD CONSTRAINT cadastre_object_block_id_fk145 
-            FOREIGN KEY (block_id) REFERENCES cadastre.block(id) ON UPDATE CASCADE ON DELETE RESTRICT;
-CREATE INDEX cadastre_object_block_id_fk145_ind ON cadastre.cadastre_object (block_id);
+ALTER TABLE source.deed ADD CONSTRAINT deed_land_use_code_fk145 
+            FOREIGN KEY (land_use_code) REFERENCES source.land_use_type(code) ON UPDATE CASCADE ON DELETE RESTRICT;
+CREATE INDEX deed_land_use_code_fk145_ind ON source.deed (land_use_code);
+
+ALTER TABLE party.party ADD CONSTRAINT party_nationality_code_fk146 
+            FOREIGN KEY (nationality_code) REFERENCES party.country(code) ON UPDATE CASCADE ON DELETE RESTRICT;
+CREATE INDEX party_nationality_code_fk146_ind ON party.party (nationality_code);
 --Generate triggers for tables --
 -- triggers for table source.source -- 
 
