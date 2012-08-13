@@ -198,138 +198,6 @@ COMMENT ON FUNCTION public.compare_strings(
   , string2 varchar
 ) IS 'Special string compare function.';
     
--- Function public.snap_geometry_to_geometry --
-CREATE OR REPLACE FUNCTION public.snap_geometry_to_geometry(
-inout geom_to_snap geometry
-  ,inout target_geom geometry
-  , snap_distance float
-  , change_target_if_needed bool
-  ,out snapped bool
-  ,out target_is_changed bool
-) RETURNS record 
-AS $$
-DECLARE
-  i integer;
-  nr_elements integer;
-  rec record;
-  rec2 record;
-  point_location float;
-  rings geometry[];
-  
-BEGIN
-  target_is_changed = false;
-  snapped = false;
-  if st_geometrytype(geom_to_snap) not in ('ST_Point', 'ST_LineString', 'ST_Polygon') then
-    raise exception 'geom_to_snap not supported. Only point, linestring and polygon is supported.';
-  end if;
-  if st_geometrytype(geom_to_snap) = 'ST_Point' then
-    -- If the geometry to snap is POINT
-    if st_geometrytype(target_geom) = 'ST_Point' then
-      if st_dwithin(geom_to_snap, target_geom, snap_distance) then
-        geom_to_snap = target_geom;
-        snapped = true;
-      end if;
-    elseif st_geometrytype(target_geom) = 'ST_LineString' then
-      -- Check first if there is any point of linestring where the point can be snapped.
-      select t.* into rec from ST_DumpPoints(target_geom) t where st_dwithin(geom_to_snap, t.geom, snap_distance);
-      if rec is not null then
-        geom_to_snap = rec.geom;
-        snapped = true;
-        return;
-      end if;
-      --Check second if the point is within distance from linestring and get an interpolation point in the line.
-      if st_dwithin(geom_to_snap, target_geom, snap_distance) then
-        point_location = ST_Line_Locate_Point(target_geom, geom_to_snap);
-        geom_to_snap = ST_Line_Interpolate_Point(target_geom, point_location);
-        if change_target_if_needed then
-          target_geom = ST_LineMerge(ST_Union(ST_Line_Substring(target_geom, 0, point_location), ST_Line_Substring(target_geom, point_location, 1)));
-          target_is_changed = true;
-        end if;
-        snapped = true;  
-      end if;
-    elseif st_geometrytype(target_geom) = 'ST_Polygon' then
-      select  array_agg(ST_ExteriorRing(geom)) into rings from ST_DumpRings(target_geom);
-      nr_elements = array_upper(rings,1);
-      i = 1;
-      while i <= nr_elements loop
-        select t.* into rec from snap_geometry_to_geometry(geom_to_snap, rings[i], snap_distance, change_target_if_needed) t;
-        if rec.snapped then
-          geom_to_snap = rec.geom_to_snap;
-          snapped = true;
-          if change_target_if_needed then
-            rings[i] = rec.target_geom;
-            target_geom = ST_MakePolygon(rings[1], rings[2:nr_elements]);
-            target_is_changed = rec.target_is_changed;
-            return;
-          end if;
-        end if;
-        i = i+1;
-      end loop;
-    end if;
-  elseif st_geometrytype(geom_to_snap) = 'ST_LineString' then
-    nr_elements = st_npoints(geom_to_snap);
-    i = 1;
-    while i <= nr_elements loop
-      select t.* into rec
-        from snap_geometry_to_geometry(st_pointn(geom_to_snap,i), target_geom, snap_distance, change_target_if_needed) t;
-      if rec.snapped then
-        if rec.target_is_changed then
-          target_geom= rec.target_geom;
-          target_is_changed = true;
-        end if;
-        geom_to_snap = st_setpoint(geom_to_snap, i-1, rec.geom_to_snap);
-        snapped = true;
-      end if;
-      i = i+1;
-    end loop;
-    -- For each point of the target checks if it can snap to the geom_to_snap
-    for rec in select * from ST_DumpPoints(target_geom) t 
-      where st_dwithin(geom_to_snap, t.geom, snap_distance) loop
-      select t.* into rec2
-        from snap_geometry_to_geometry(rec.geom, geom_to_snap, snap_distance, true) t;
-      if rec2.target_is_changed then
-        geom_to_snap = rec2.target_geom;
-        snapped = true;
-      end if;
-    end loop;
-  elseif st_geometrytype(geom_to_snap) = 'ST_Polygon' then
-    select  array_agg(ST_ExteriorRing(geom)) into rings from ST_DumpRings(geom_to_snap);
-    nr_elements = array_upper(rings,1);
-    i = 1;
-    while i <= nr_elements loop
-      select t.* into rec
-        from snap_geometry_to_geometry(rings[i], target_geom, snap_distance, change_target_if_needed) t;
-      if rec.snapped then
-        rings[i] = rec.geom_to_snap;
-        if rec.target_is_changed then
-          target_geom = rec.target_geom;
-          target_is_changed = true;
-        end if;
-        snapped = true;
-      end if;
-      i= i+1;
-    end loop;
-    if snapped then
-      geom_to_snap = ST_MakePolygon(rings[1], rings[2:nr_elements]);
-    end if;
-  end if;
-  return;
-END;
-$$ LANGUAGE plpgsql;
-COMMENT ON FUNCTION public.snap_geometry_to_geometry(
-inout geom_to_snap geometry
-  ,inout target_geom geometry
-  , snap_distance float
-  , change_target_if_needed bool
-  ,out snapped bool
-  ,out target_is_changed bool
-) IS 'Used to snap a geometry to another geometry.
-
-Usage sample:
-select geom_to_snap, target_geom, snapped, target_is_changed 
-FROM snap_geometry_to_geometry(geomfromtext(''POLYGON((0.1 0, 0.1 5.7, 4 3, 0.1 0))''), 
- geomfromtext(''POLYGON((0 0, 0 6, 6 6, 6 0, 0 0),(1 1, 3 5, 4 5, 1 1))''), 1, true)';
-    
 -- Function public.get_geometry_with_srid --
 CREATE OR REPLACE FUNCTION public.get_geometry_with_srid(
  geom geometry
@@ -769,6 +637,50 @@ COMMENT ON FUNCTION cadastre.cadastre_object_name_is_valid(
  name_firstpart varchar
   , name_lastpart varchar
 ) IS 'This function, checks if the name parts of the cadastre_object are valid.';
+    
+-- Function cadastre.add_topo_points --
+CREATE OR REPLACE FUNCTION cadastre.add_topo_points(
+ source geometry
+  , target geometry
+) RETURNS geometry 
+AS $$
+declare
+  rec record;
+  point_location float;
+  point_to_add geometry;
+  rings geometry[];
+  nr_elements integer;
+  tolerance double precision;
+  i integer;
+begin
+  tolerance = system.get_setting('map-tolerance')::double precision;
+  if st_geometrytype(target) = 'ST_LineString' then
+    for rec in 
+      select geom from St_DumpPoints(source) s
+        where st_dwithin(target, s.geom, tolerance)
+    loop
+      if (select count(1) from st_dumppoints(target) t where st_dwithin(rec.geom, t.geom, tolerance))=0 then
+        point_location = ST_Line_Locate_Point(target, rec.geom);
+        --point_to_add = ST_Line_Interpolate_Point(target, point_location);
+        target = ST_LineMerge(ST_Union(ST_Line_Substring(target, 0, point_location), ST_Line_Substring(target, point_location, 1)));
+      end if;
+    end loop;
+  elsif st_geometrytype(target)= 'ST_Polygon' then
+    select  array_agg(ST_ExteriorRing(geom)) into rings from ST_DumpRings(target);
+    nr_elements = array_upper(rings, 1);
+    for i in 1..nr_elements loop
+      rings[i] = cadastre.add_topo_points(source, rings[i]);
+    end loop;
+    target = ST_MakePolygon(rings[1], rings[2:nr_elements]);
+  end if;
+  return target;
+end;
+$$ LANGUAGE plpgsql;
+COMMENT ON FUNCTION cadastre.add_topo_points(
+ source geometry
+  , target geometry
+) IS 'This function searches for any point in source that falls into target. If a point is found then the point it is added in the target.
+It returns the modified target.';
     
     
 select clean_db('public');
@@ -3112,31 +3024,6 @@ insert into application.application_action_type(code, start_status_type_code, di
 
 
 
---Table application.service_status_type ----
-DROP TABLE IF EXISTS application.service_status_type CASCADE;
-CREATE TABLE application.service_status_type(
-    code varchar(20) NOT NULL,
-    display_value varchar(250) NOT NULL,
-    status char(1) NOT NULL DEFAULT ('t'),
-    description varchar(555),
-
-    -- Internal constraints
-    
-    CONSTRAINT service_status_type_display_value_unique UNIQUE (display_value),
-    CONSTRAINT service_status_type_pkey PRIMARY KEY (code)
-);
-
-
-comment on table application.service_status_type is 'It is the status that a service can have.';
-    
- -- Data for the table application.service_status_type -- 
-insert into application.service_status_type(code, display_value, status, description) values('lodged', 'Lodged::::Registrata', 'c', 'Application for a service has been lodged and officially received by land office::::La pratica per un servizio, registrata e formalmente ricevuta da ufficio territoriale');
-insert into application.service_status_type(code, display_value, status) values('completed', 'Completed::::Completata', 'c');
-insert into application.service_status_type(code, display_value, status) values('pending', 'Pending::::ITALIANO', 'c');
-insert into application.service_status_type(code, display_value, status) values('cancelled', 'Cancelled::::Cancellato', 'c');
-
-
-
 --Table party.id_type ----
 DROP TABLE IF EXISTS party.id_type CASCADE;
 CREATE TABLE party.id_type(
@@ -3189,11 +3076,11 @@ LADM Definition
 Not Applicable';
     
  -- Data for the table application.service_action_type -- 
-insert into application.service_action_type(code, display_value, status_to_set, status, description) values('lodge', 'Lodge::::Registrata', 'lodged', 'c', 'Application for service(s) is officially received by land office (action is automatically logged when application is saved for the first time)::::La pratica per i servizi formalmente ricevuta da ufficio territoriale');
-insert into application.service_action_type(code, display_value, status_to_set, status, description) values('start', 'Start::::Comincia', 'pending', 'c', 'Provisional RRR Changes Made to Database as a result of application (action is automatically logged when a change is made to a rrr object)::::Apportate Modifiche Provvisorie di tipo RRR al Database come risultato della pratica');
-insert into application.service_action_type(code, display_value, status_to_set, status, description) values('cancel', 'Cancel::::Cancella la pratica', 'cancelled', 'c', 'Service is cancelled by Land Office (action is automatically logged when a service is cancelled)::::Pratica cancellata da Ufficio Territoriale');
-insert into application.service_action_type(code, display_value, status_to_set, status, description) values('complete', 'Complete::::Completa', 'completed', 'c', 'Application is ready for approval (action is automatically logged when service is marked as complete::::Pratica pronta per approvazione');
-insert into application.service_action_type(code, display_value, status_to_set, status, description) values('revert', 'Revert::::ITALIANO', 'pending', 'c', 'The status of the service has been reverted to pending from being completed (action is automatically logged when a service is reverted back for further work)::::ITALIANO');
+insert into application.service_action_type(code, display_value, status, description) values('lodge', 'Lodge::::Registrata', 'c', 'Application for service(s) is officially received by land office (action is automatically logged when application is saved for the first time)::::La pratica per i servizi formalmente ricevuta da ufficio territoriale');
+insert into application.service_action_type(code, display_value, status, description) values('start', 'Start::::Comincia', 'c', 'Provisional RRR Changes Made to Database as a result of application (action is automatically logged when a change is made to a rrr object)::::Apportate Modifiche Provvisorie di tipo RRR al Database come risultato della pratica');
+insert into application.service_action_type(code, display_value, status, description) values('cancel', 'Cancel::::Cancella la pratica', 'c', 'Service is cancelled by Land Office (action is automatically logged when a service is cancelled)::::Pratica cancellata da Ufficio Territoriale');
+insert into application.service_action_type(code, display_value, status, description) values('complete', 'Complete::::Completa', 'c', 'Application is ready for approval (action is automatically logged when service is marked as complete::::Pratica pronta per approvazione');
+insert into application.service_action_type(code, display_value, status, description) values('revert', 'Revert::::ITALIANO', 'c', 'The status of the service has been reverted to pending from being completed (action is automatically logged when a service is reverted back for further work)::::ITALIANO');
 
 
 
@@ -3765,6 +3652,7 @@ CREATE TABLE cadastre.cadastre_object_type(
     display_value varchar(250) NOT NULL,
     description varchar(555),
     status char(1) NOT NULL,
+    in_topology bool NOT NULL DEFAULT (false),
 
     -- Internal constraints
     
@@ -3776,9 +3664,10 @@ CREATE TABLE cadastre.cadastre_object_type(
 comment on table cadastre.cadastre_object_type is 'The type of spatial object. This defines the specialisation of the spatial unit. It can be a parcel, building_unit or backgroup data like a road etc.';
     
  -- Data for the table cadastre.cadastre_object_type -- 
-insert into cadastre.cadastre_object_type(code, display_value, status) values('parcel', 'Parcel', 'c');
-insert into cadastre.cadastre_object_type(code, display_value, status) values('building', 'Building', 'c');
-insert into cadastre.cadastre_object_type(code, display_value, status) values('strata', 'Strata', 'c');
+insert into cadastre.cadastre_object_type(code, display_value, status, in_topology) values('parcel', 'Parcel', 'c', true);
+insert into cadastre.cadastre_object_type(code, display_value, status, in_topology) values('building', 'Building', 'c', false);
+insert into cadastre.cadastre_object_type(code, display_value, status, in_topology) values('strata', 'Strata', 'c', false);
+insert into cadastre.cadastre_object_type(code, display_value, status, in_topology) values('allodial', 'Allodial', 'c', true);
 
 
 
@@ -5881,197 +5770,189 @@ ALTER TABLE system.approle_appgroup ADD CONSTRAINT approle_appgroup_appgroup_id_
             FOREIGN KEY (appgroup_id) REFERENCES system.appgroup(id) ON UPDATE CASCADE ON DELETE CASCADE;
 CREATE INDEX approle_appgroup_appgroup_id_fk98_ind ON system.approle_appgroup (appgroup_id);
 
-ALTER TABLE application.service_action_type ADD CONSTRAINT service_action_type_status_to_set_fk99 
-            FOREIGN KEY (status_to_set) REFERENCES application.service_status_type(code) ON UPDATE CASCADE ON DELETE RESTRICT;
-CREATE INDEX service_action_type_status_to_set_fk99_ind ON application.service_action_type (status_to_set);
-
-ALTER TABLE application.application_action_type ADD CONSTRAINT application_action_type_next_status_type_code_fk100 
+ALTER TABLE application.application_action_type ADD CONSTRAINT application_action_type_next_status_type_code_fk99 
             FOREIGN KEY (next_status_type_code) REFERENCES application.application_status_type(code) ON UPDATE CASCADE ON DELETE RESTRICT;
-CREATE INDEX application_action_type_next_status_type_code_fk100_ind ON application.application_action_type (next_status_type_code);
+CREATE INDEX application_action_type_next_status_type_code_fk99_ind ON application.application_action_type (next_status_type_code);
 
-ALTER TABLE system.br_validation ADD CONSTRAINT br_validation_target_application_moment_fk101 
+ALTER TABLE system.br_validation ADD CONSTRAINT br_validation_target_application_moment_fk100 
             FOREIGN KEY (target_application_moment) REFERENCES application.application_action_type(code) ON UPDATE CASCADE ON DELETE RESTRICT;
-CREATE INDEX br_validation_target_application_moment_fk101_ind ON system.br_validation (target_application_moment);
+CREATE INDEX br_validation_target_application_moment_fk100_ind ON system.br_validation (target_application_moment);
 
-ALTER TABLE system.br_validation ADD CONSTRAINT br_validation_target_service_moment_fk102 
-            FOREIGN KEY (target_service_moment) REFERENCES application.service_action_type(code) ON UPDATE CASCADE ON DELETE RESTRICT;
-CREATE INDEX br_validation_target_service_moment_fk102_ind ON system.br_validation (target_service_moment);
-
-ALTER TABLE system.br_validation ADD CONSTRAINT br_validation_target_reg_moment_fk103 
+ALTER TABLE system.br_validation ADD CONSTRAINT br_validation_target_reg_moment_fk101 
             FOREIGN KEY (target_reg_moment) REFERENCES transaction.reg_status_type(code) ON UPDATE CASCADE ON DELETE RESTRICT;
-CREATE INDEX br_validation_target_reg_moment_fk103_ind ON system.br_validation (target_reg_moment);
+CREATE INDEX br_validation_target_reg_moment_fk101_ind ON system.br_validation (target_reg_moment);
 
-ALTER TABLE system.query_field ADD CONSTRAINT query_field_query_name_fk104 
+ALTER TABLE system.query_field ADD CONSTRAINT query_field_query_name_fk102 
             FOREIGN KEY (query_name) REFERENCES system.query(name) ON UPDATE CASCADE ON DELETE CASCADE;
-CREATE INDEX query_field_query_name_fk104_ind ON system.query_field (query_name);
+CREATE INDEX query_field_query_name_fk102_ind ON system.query_field (query_name);
 
-ALTER TABLE system.config_map_layer ADD CONSTRAINT config_map_layer_pojo_query_name_fk105 
+ALTER TABLE system.config_map_layer ADD CONSTRAINT config_map_layer_pojo_query_name_fk103 
             FOREIGN KEY (pojo_query_name) REFERENCES system.query(name) ON UPDATE CASCADE ON DELETE RESTRICT;
-CREATE INDEX config_map_layer_pojo_query_name_fk105_ind ON system.config_map_layer (pojo_query_name);
+CREATE INDEX config_map_layer_pojo_query_name_fk103_ind ON system.config_map_layer (pojo_query_name);
 
-ALTER TABLE system.config_map_layer ADD CONSTRAINT config_map_layer_pojo_query_name_for_select_fk106 
+ALTER TABLE system.config_map_layer ADD CONSTRAINT config_map_layer_pojo_query_name_for_select_fk104 
             FOREIGN KEY (pojo_query_name_for_select) REFERENCES system.query(name) ON UPDATE CASCADE ON DELETE RESTRICT;
-CREATE INDEX config_map_layer_pojo_query_name_for_select_fk106_ind ON system.config_map_layer (pojo_query_name_for_select);
+CREATE INDEX config_map_layer_pojo_query_name_for_select_fk104_ind ON system.config_map_layer (pojo_query_name_for_select);
 
-ALTER TABLE cadastre.cadastre_object_node_target ADD CONSTRAINT cadastre_object_node_target_transaction_id_fk107 
+ALTER TABLE cadastre.cadastre_object_node_target ADD CONSTRAINT cadastre_object_node_target_transaction_id_fk105 
             FOREIGN KEY (transaction_id) REFERENCES transaction.transaction(id) ON UPDATE CASCADE ON DELETE CASCADE;
-CREATE INDEX cadastre_object_node_target_transaction_id_fk107_ind ON cadastre.cadastre_object_node_target (transaction_id);
+CREATE INDEX cadastre_object_node_target_transaction_id_fk105_ind ON cadastre.cadastre_object_node_target (transaction_id);
 
-ALTER TABLE administrative.ba_unit_target ADD CONSTRAINT ba_unit_target_ba_unit_id_fk108 
+ALTER TABLE administrative.ba_unit_target ADD CONSTRAINT ba_unit_target_ba_unit_id_fk106 
             FOREIGN KEY (ba_unit_id) REFERENCES administrative.ba_unit(id) ON UPDATE CASCADE ON DELETE CASCADE;
-CREATE INDEX ba_unit_target_ba_unit_id_fk108_ind ON administrative.ba_unit_target (ba_unit_id);
+CREATE INDEX ba_unit_target_ba_unit_id_fk106_ind ON administrative.ba_unit_target (ba_unit_id);
 
-ALTER TABLE administrative.ba_unit_target ADD CONSTRAINT ba_unit_target_transaction_id_fk109 
+ALTER TABLE administrative.ba_unit_target ADD CONSTRAINT ba_unit_target_transaction_id_fk107 
             FOREIGN KEY (transaction_id) REFERENCES transaction.transaction(id) ON UPDATE CASCADE ON DELETE CASCADE;
-CREATE INDEX ba_unit_target_transaction_id_fk109_ind ON administrative.ba_unit_target (transaction_id);
+CREATE INDEX ba_unit_target_transaction_id_fk107_ind ON administrative.ba_unit_target (transaction_id);
 
-ALTER TABLE system.map_search_option ADD CONSTRAINT map_search_option_query_name_fk110 
+ALTER TABLE system.map_search_option ADD CONSTRAINT map_search_option_query_name_fk108 
             FOREIGN KEY (query_name) REFERENCES system.query(name) ON UPDATE CASCADE ON DELETE RESTRICT;
-CREATE INDEX map_search_option_query_name_fk110_ind ON system.map_search_option (query_name);
+CREATE INDEX map_search_option_query_name_fk108_ind ON system.map_search_option (query_name);
 
-ALTER TABLE application.application_party ADD CONSTRAINT application_party_application_id_fk111 
+ALTER TABLE application.application_party ADD CONSTRAINT application_party_application_id_fk109 
             FOREIGN KEY (application_id) REFERENCES application.application(id) ON UPDATE CASCADE ON DELETE RESTRICT;
-CREATE INDEX application_party_application_id_fk111_ind ON application.application_party (application_id);
+CREATE INDEX application_party_application_id_fk109_ind ON application.application_party (application_id);
 
-ALTER TABLE application.application_party ADD CONSTRAINT application_party_party_id_fk112 
+ALTER TABLE application.application_party ADD CONSTRAINT application_party_party_id_fk110 
             FOREIGN KEY (party_id) REFERENCES party.party(id) ON UPDATE CASCADE ON DELETE RESTRICT;
-CREATE INDEX application_party_party_id_fk112_ind ON application.application_party (party_id);
+CREATE INDEX application_party_party_id_fk110_ind ON application.application_party (party_id);
 
-ALTER TABLE application.application_party ADD CONSTRAINT application_party_role_code_fk113 
+ALTER TABLE application.application_party ADD CONSTRAINT application_party_role_code_fk111 
             FOREIGN KEY (role_code) REFERENCES party.party_role_type(code) ON UPDATE CASCADE ON DELETE RESTRICT;
-CREATE INDEX application_party_role_code_fk113_ind ON application.application_party (role_code);
+CREATE INDEX application_party_role_code_fk111_ind ON application.application_party (role_code);
 
-ALTER TABLE application.application ADD CONSTRAINT application_request_code_fk114 
+ALTER TABLE application.application ADD CONSTRAINT application_request_code_fk112 
             FOREIGN KEY (request_code) REFERENCES application.request_type(code) ON UPDATE CASCADE ON DELETE RESTRICT;
-CREATE INDEX application_request_code_fk114_ind ON application.application (request_code);
+CREATE INDEX application_request_code_fk112_ind ON application.application (request_code);
 
-ALTER TABLE application.application_fee ADD CONSTRAINT application_fee_application_id_fk115 
+ALTER TABLE application.application_fee ADD CONSTRAINT application_fee_application_id_fk113 
             FOREIGN KEY (application_id) REFERENCES application.application(id) ON UPDATE CASCADE ON DELETE RESTRICT;
-CREATE INDEX application_fee_application_id_fk115_ind ON application.application_fee (application_id);
+CREATE INDEX application_fee_application_id_fk113_ind ON application.application_fee (application_id);
 
-ALTER TABLE application.application_fee ADD CONSTRAINT application_fee_fee_code_fk116 
+ALTER TABLE application.application_fee ADD CONSTRAINT application_fee_fee_code_fk114 
             FOREIGN KEY (fee_code) REFERENCES application.fee_type(code) ON UPDATE CASCADE ON DELETE RESTRICT;
-CREATE INDEX application_fee_fee_code_fk116_ind ON application.application_fee (fee_code);
+CREATE INDEX application_fee_fee_code_fk114_ind ON application.application_fee (fee_code);
 
-ALTER TABLE application.request_type_fee_type ADD CONSTRAINT request_type_fee_type_request_code_fk117 
+ALTER TABLE application.request_type_fee_type ADD CONSTRAINT request_type_fee_type_request_code_fk115 
             FOREIGN KEY (request_code) REFERENCES application.request_type(code) ON UPDATE CASCADE ON DELETE CASCADE;
-CREATE INDEX request_type_fee_type_request_code_fk117_ind ON application.request_type_fee_type (request_code);
+CREATE INDEX request_type_fee_type_request_code_fk115_ind ON application.request_type_fee_type (request_code);
 
-ALTER TABLE application.request_type_fee_type ADD CONSTRAINT request_type_fee_type_fee_code_fk118 
+ALTER TABLE application.request_type_fee_type ADD CONSTRAINT request_type_fee_type_fee_code_fk116 
             FOREIGN KEY (fee_code) REFERENCES application.fee_type(code) ON UPDATE CASCADE ON DELETE CASCADE;
-CREATE INDEX request_type_fee_type_fee_code_fk118_ind ON application.request_type_fee_type (fee_code);
+CREATE INDEX request_type_fee_type_fee_code_fk116_ind ON application.request_type_fee_type (fee_code);
 
-ALTER TABLE party.party ADD CONSTRAINT party_postal_address_id_fk119 
+ALTER TABLE party.party ADD CONSTRAINT party_postal_address_id_fk117 
             FOREIGN KEY (postal_address_id) REFERENCES address.address(id) ON UPDATE CASCADE ON DELETE RESTRICT;
-CREATE INDEX party_postal_address_id_fk119_ind ON party.party (postal_address_id);
+CREATE INDEX party_postal_address_id_fk117_ind ON party.party (postal_address_id);
 
-ALTER TABLE party.party_id ADD CONSTRAINT party_id_party_id_fk120 
+ALTER TABLE party.party_id ADD CONSTRAINT party_id_party_id_fk118 
             FOREIGN KEY (party_id) REFERENCES party.party(id) ON UPDATE CASCADE ON DELETE RESTRICT;
-CREATE INDEX party_id_party_id_fk120_ind ON party.party_id (party_id);
+CREATE INDEX party_id_party_id_fk118_ind ON party.party_id (party_id);
 
-ALTER TABLE party.party_id ADD CONSTRAINT party_id_type_code_fk121 
+ALTER TABLE party.party_id ADD CONSTRAINT party_id_type_code_fk119 
             FOREIGN KEY (type_code) REFERENCES party.id_type(code) ON UPDATE CASCADE ON DELETE RESTRICT;
-CREATE INDEX party_id_type_code_fk121_ind ON party.party_id (type_code);
+CREATE INDEX party_id_type_code_fk119_ind ON party.party_id (type_code);
 
-ALTER TABLE application.action_data_field_type ADD CONSTRAINT action_data_field_type_action_type_code_fk122 
+ALTER TABLE application.action_data_field_type ADD CONSTRAINT action_data_field_type_action_type_code_fk120 
             FOREIGN KEY (action_type_code) REFERENCES application.application_action_type(code) ON UPDATE CASCADE ON DELETE RESTRICT;
-CREATE INDEX action_data_field_type_action_type_code_fk122_ind ON application.action_data_field_type (action_type_code);
+CREATE INDEX action_data_field_type_action_type_code_fk120_ind ON application.action_data_field_type (action_type_code);
 
-ALTER TABLE application.application_action ADD CONSTRAINT application_action_type_code_fk123 
+ALTER TABLE application.application_action ADD CONSTRAINT application_action_type_code_fk121 
             FOREIGN KEY (type_code) REFERENCES application.application_action_type(code) ON UPDATE CASCADE ON DELETE RESTRICT;
-CREATE INDEX application_action_type_code_fk123_ind ON application.application_action (type_code);
+CREATE INDEX application_action_type_code_fk121_ind ON application.application_action (type_code);
 
-ALTER TABLE application.application_status ADD CONSTRAINT application_status_application_id_fk124 
+ALTER TABLE application.application_status ADD CONSTRAINT application_status_application_id_fk122 
             FOREIGN KEY (application_id) REFERENCES application.application(id) ON UPDATE CASCADE ON DELETE RESTRICT;
-CREATE INDEX application_status_application_id_fk124_ind ON application.application_status (application_id);
+CREATE INDEX application_status_application_id_fk122_ind ON application.application_status (application_id);
 
-ALTER TABLE application.application_status ADD CONSTRAINT application_status_type_code_fk125 
+ALTER TABLE application.application_status ADD CONSTRAINT application_status_type_code_fk123 
             FOREIGN KEY (type_code) REFERENCES application.application_status_type(code) ON UPDATE CASCADE ON DELETE RESTRICT;
-CREATE INDEX application_status_type_code_fk125_ind ON application.application_status (type_code);
+CREATE INDEX application_status_type_code_fk123_ind ON application.application_status (type_code);
 
-ALTER TABLE application.application_action ADD CONSTRAINT application_action_status_id_fk126 
+ALTER TABLE application.application_action ADD CONSTRAINT application_action_status_id_fk124 
             FOREIGN KEY (status_id) REFERENCES application.application_status(id) ON UPDATE CASCADE ON DELETE RESTRICT;
-CREATE INDEX application_action_status_id_fk126_ind ON application.application_action (status_id);
+CREATE INDEX application_action_status_id_fk124_ind ON application.application_action (status_id);
 
-ALTER TABLE application.action_data ADD CONSTRAINT action_data_action_id_fk127 
+ALTER TABLE application.action_data ADD CONSTRAINT action_data_action_id_fk125 
             FOREIGN KEY (action_id) REFERENCES application.application_action(id) ON UPDATE CASCADE ON DELETE CASCADE;
-CREATE INDEX action_data_action_id_fk127_ind ON application.action_data (action_id);
+CREATE INDEX action_data_action_id_fk125_ind ON application.action_data (action_id);
 
-ALTER TABLE application.action_data ADD CONSTRAINT action_data_type_code_fk128 
+ALTER TABLE application.action_data ADD CONSTRAINT action_data_type_code_fk126 
             FOREIGN KEY (type_code) REFERENCES application.action_data_field_type(code) ON UPDATE CASCADE ON DELETE CASCADE;
-CREATE INDEX action_data_type_code_fk128_ind ON application.action_data (type_code);
+CREATE INDEX action_data_type_code_fk126_ind ON application.action_data (type_code);
 
-ALTER TABLE application.request_type ADD CONSTRAINT request_type_starting_status_code_fk129 
+ALTER TABLE application.request_type ADD CONSTRAINT request_type_starting_status_code_fk127 
             FOREIGN KEY (starting_status_code) REFERENCES application.application_status_type(code) ON UPDATE CASCADE ON DELETE RESTRICT;
-CREATE INDEX request_type_starting_status_code_fk129_ind ON application.request_type (starting_status_code);
+CREATE INDEX request_type_starting_status_code_fk127_ind ON application.request_type (starting_status_code);
 
-ALTER TABLE application.application_action_type ADD CONSTRAINT application_action_type_start_status_type_code_fk130 
+ALTER TABLE application.application_action_type ADD CONSTRAINT application_action_type_start_status_type_code_fk128 
             FOREIGN KEY (start_status_type_code) REFERENCES application.application_status_type(code) ON UPDATE CASCADE ON DELETE RESTRICT;
-CREATE INDEX application_action_type_start_status_type_code_fk130_ind ON application.application_action_type (start_status_type_code);
+CREATE INDEX application_action_type_start_status_type_code_fk128_ind ON application.application_action_type (start_status_type_code);
 
-ALTER TABLE application.action_data_field_type ADD CONSTRAINT action_data_field_type_type_code_fk131 
+ALTER TABLE application.action_data_field_type ADD CONSTRAINT action_data_field_type_type_code_fk129 
             FOREIGN KEY (type_code) REFERENCES application.data_type(code) ON UPDATE CASCADE ON DELETE RESTRICT;
-CREATE INDEX action_data_field_type_type_code_fk131_ind ON application.action_data_field_type (type_code);
+CREATE INDEX action_data_field_type_type_code_fk129_ind ON application.action_data_field_type (type_code);
 
-ALTER TABLE application.application_spatial_unit ADD CONSTRAINT application_spatial_unit_application_id_fk132 
+ALTER TABLE application.application_spatial_unit ADD CONSTRAINT application_spatial_unit_application_id_fk130 
             FOREIGN KEY (application_id) REFERENCES application.application(id) ON UPDATE CASCADE ON DELETE CASCADE;
-CREATE INDEX application_spatial_unit_application_id_fk132_ind ON application.application_spatial_unit (application_id);
+CREATE INDEX application_spatial_unit_application_id_fk130_ind ON application.application_spatial_unit (application_id);
 
-ALTER TABLE application.application_spatial_unit ADD CONSTRAINT application_spatial_unit_spatial_unit_id_fk133 
+ALTER TABLE application.application_spatial_unit ADD CONSTRAINT application_spatial_unit_spatial_unit_id_fk131 
             FOREIGN KEY (spatial_unit_id) REFERENCES cadastre.spatial_unit(id) ON UPDATE CASCADE ON DELETE CASCADE;
-CREATE INDEX application_spatial_unit_spatial_unit_id_fk133_ind ON application.application_spatial_unit (spatial_unit_id);
+CREATE INDEX application_spatial_unit_spatial_unit_id_fk131_ind ON application.application_spatial_unit (spatial_unit_id);
 
-ALTER TABLE transaction.transaction ADD CONSTRAINT transaction_from_application_id_fk134 
+ALTER TABLE transaction.transaction ADD CONSTRAINT transaction_from_application_id_fk132 
             FOREIGN KEY (from_application_id) REFERENCES application.application(id) ON UPDATE CASCADE ON DELETE RESTRICT;
-CREATE INDEX transaction_from_application_id_fk134_ind ON transaction.transaction (from_application_id);
+CREATE INDEX transaction_from_application_id_fk132_ind ON transaction.transaction (from_application_id);
 
-ALTER TABLE source.deed ADD CONSTRAINT deed_id_fk135 
+ALTER TABLE source.deed ADD CONSTRAINT deed_id_fk133 
             FOREIGN KEY (id) REFERENCES source.source(id) ON UPDATE CASCADE ON DELETE CASCADE;
-CREATE INDEX deed_id_fk135_ind ON source.deed (id);
+CREATE INDEX deed_id_fk133_ind ON source.deed (id);
 
-ALTER TABLE source.deed ADD CONSTRAINT deed_instrument_type_code_fk136 
+ALTER TABLE source.deed ADD CONSTRAINT deed_instrument_type_code_fk134 
             FOREIGN KEY (instrument_type_code) REFERENCES administrative.rrr_type(code) ON UPDATE CASCADE ON DELETE RESTRICT;
-CREATE INDEX deed_instrument_type_code_fk136_ind ON source.deed (instrument_type_code);
+CREATE INDEX deed_instrument_type_code_fk134_ind ON source.deed (instrument_type_code);
 
-ALTER TABLE source.deed ADD CONSTRAINT deed_first_party_id_fk137 
+ALTER TABLE source.deed ADD CONSTRAINT deed_first_party_id_fk135 
             FOREIGN KEY (first_party_id) REFERENCES party.party(id) ON UPDATE CASCADE ON DELETE RESTRICT;
-CREATE INDEX deed_first_party_id_fk137_ind ON source.deed (first_party_id);
+CREATE INDEX deed_first_party_id_fk135_ind ON source.deed (first_party_id);
 
-ALTER TABLE source.deed ADD CONSTRAINT deed_second_party_id_fk138 
+ALTER TABLE source.deed ADD CONSTRAINT deed_second_party_id_fk136 
             FOREIGN KEY (second_party_id) REFERENCES party.party(id) ON UPDATE CASCADE ON DELETE RESTRICT;
-CREATE INDEX deed_second_party_id_fk138_ind ON source.deed (second_party_id);
+CREATE INDEX deed_second_party_id_fk136_ind ON source.deed (second_party_id);
 
-ALTER TABLE source.deed ADD CONSTRAINT deed_forward_reference_id_fk139 
+ALTER TABLE source.deed ADD CONSTRAINT deed_forward_reference_id_fk137 
             FOREIGN KEY (forward_reference_id) REFERENCES source.deed(id) ON UPDATE CASCADE ON DELETE RESTRICT;
-CREATE INDEX deed_forward_reference_id_fk139_ind ON source.deed (forward_reference_id);
+CREATE INDEX deed_forward_reference_id_fk137_ind ON source.deed (forward_reference_id);
 
-ALTER TABLE source.deed ADD CONSTRAINT deed_backward_reference_id_fk140 
+ALTER TABLE source.deed ADD CONSTRAINT deed_backward_reference_id_fk138 
             FOREIGN KEY (backward_reference_id) REFERENCES source.deed(id) ON UPDATE CASCADE ON DELETE RESTRICT;
-CREATE INDEX deed_backward_reference_id_fk140_ind ON source.deed (backward_reference_id);
+CREATE INDEX deed_backward_reference_id_fk138_ind ON source.deed (backward_reference_id);
 
-ALTER TABLE cadastre.district ADD CONSTRAINT district_region_id_fk141 
+ALTER TABLE cadastre.district ADD CONSTRAINT district_region_id_fk139 
             FOREIGN KEY (region_id) REFERENCES cadastre.region(id) ON UPDATE CASCADE ON DELETE RESTRICT;
-CREATE INDEX district_region_id_fk141_ind ON cadastre.district (region_id);
+CREATE INDEX district_region_id_fk139_ind ON cadastre.district (region_id);
 
-ALTER TABLE cadastre.section ADD CONSTRAINT section_district_id_fk142 
+ALTER TABLE cadastre.section ADD CONSTRAINT section_district_id_fk140 
             FOREIGN KEY (district_id) REFERENCES cadastre.district(id) ON UPDATE CASCADE ON DELETE RESTRICT;
-CREATE INDEX section_district_id_fk142_ind ON cadastre.section (district_id);
+CREATE INDEX section_district_id_fk140_ind ON cadastre.section (district_id);
 
-ALTER TABLE cadastre.block ADD CONSTRAINT block_section_id_fk143 
+ALTER TABLE cadastre.block ADD CONSTRAINT block_section_id_fk141 
             FOREIGN KEY (section_id) REFERENCES cadastre.section(id) ON UPDATE CASCADE ON DELETE RESTRICT;
-CREATE INDEX block_section_id_fk143_ind ON cadastre.block (section_id);
+CREATE INDEX block_section_id_fk141_ind ON cadastre.block (section_id);
 
-ALTER TABLE cadastre.cadastre_object ADD CONSTRAINT cadastre_object_found_in_cadastre_object_id_fk144 
+ALTER TABLE cadastre.cadastre_object ADD CONSTRAINT cadastre_object_found_in_cadastre_object_id_fk142 
             FOREIGN KEY (found_in_cadastre_object_id) REFERENCES cadastre.cadastre_object(id) ON UPDATE CASCADE ON DELETE RESTRICT;
-CREATE INDEX cadastre_object_found_in_cadastre_object_id_fk144_ind ON cadastre.cadastre_object (found_in_cadastre_object_id);
+CREATE INDEX cadastre_object_found_in_cadastre_object_id_fk142_ind ON cadastre.cadastre_object (found_in_cadastre_object_id);
 
-ALTER TABLE source.deed ADD CONSTRAINT deed_land_use_code_fk145 
+ALTER TABLE source.deed ADD CONSTRAINT deed_land_use_code_fk143 
             FOREIGN KEY (land_use_code) REFERENCES source.land_use_type(code) ON UPDATE CASCADE ON DELETE RESTRICT;
-CREATE INDEX deed_land_use_code_fk145_ind ON source.deed (land_use_code);
+CREATE INDEX deed_land_use_code_fk143_ind ON source.deed (land_use_code);
 
-ALTER TABLE party.party ADD CONSTRAINT party_nationality_code_fk146 
+ALTER TABLE party.party ADD CONSTRAINT party_nationality_code_fk144 
             FOREIGN KEY (nationality_code) REFERENCES party.country(code) ON UPDATE CASCADE ON DELETE RESTRICT;
-CREATE INDEX party_nationality_code_fk146_ind ON party.party (nationality_code);
+CREATE INDEX party_nationality_code_fk144_ind ON party.party (nationality_code);
 --Generate triggers for tables --
 -- triggers for table source.source -- 
 
@@ -6150,34 +6031,40 @@ CREATE TRIGGER trg_new before insert
 CREATE OR REPLACE FUNCTION cadastre.f_for_tbl_cadastre_object_trg_geommodify() RETURNS TRIGGER 
 AS $$
 declare
-  geom_is_modified boolean;
   rec record;
   rec_snap record;
-  snapping_tolerance float;
+  tolerance float;
+  modified_geom geometry;
 begin
-  snapping_tolerance = coalesce(system.get_setting('map-tolerance')::double precision, 0.01);
-  geom_is_modified = (tg_op = 'INSERT' and new.geom_polygon is not null);
-  if tg_op= 'UPDATE' and new.geom_polygon is not null then
-    geom_is_modified = not st_equals(new.geom_polygon, old.geom_polygon);
-  end if;
-  if not geom_is_modified then
+
+  if new.status_code != 'current' then
     return new;
   end if;
+
+  if new.type_code not in (select code from cadastre.cadastre_object_type where in_topology) then
+    return new;
+  end if;
+
+  tolerance = coalesce(system.get_setting('map-tolerance')::double precision, 0.01);
   for rec in select co.id, co.geom_polygon 
                  from cadastre.cadastre_object co 
-                 where  co.id != new.id 
+                 where  co.id != new.id and co.type_code = new.type_code and co.status_code = 'current'
                      and co.geom_polygon is not null 
-                     and st_dwithin(new.geom_polygon, co.geom_polygon, snapping_tolerance)
+                     and new.geom_polygon && co.geom_polygon 
+                     and st_dwithin(new.geom_polygon, co.geom_polygon, tolerance)
   loop
-    select * into rec_snap 
-        from snap_geometry_to_geometry(new.geom_polygon, rec.geom_polygon, snapping_tolerance, false);
-      new.geom_polygon = rec_snap.geom_to_snap;
+    modified_geom = cadastre.add_topo_points(new.geom_polygon, rec.geom_polygon);
+    if not st_equals(modified_geom, rec.geom_polygon) then
+      update cadastre.cadastre_object 
+        set geom_polygon= modified_geom, change_user= new.change_user 
+      where id= rec.id;
+    end if;
   end loop;
   return new;
 end;
 $$ LANGUAGE plpgsql;
 DROP TRIGGER IF EXISTS trg_geommodify ON cadastre.cadastre_object CASCADE;
-CREATE TRIGGER trg_geommodify before insert or update
+CREATE TRIGGER trg_geommodify after insert or update of geom_polygon
    ON cadastre.cadastre_object FOR EACH ROW
    EXECUTE PROCEDURE cadastre.f_for_tbl_cadastre_object_trg_geommodify();
     
