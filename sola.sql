@@ -4746,10 +4746,10 @@ insert into system.query_field(query_name, index_in_query, name, display_value) 
 insert into system.query_field(query_name, index_in_query, name, display_value) values('dynamic.informationtool.get_parcel_historic_current_ba', 2, 'ba_units', 'Properties::::ITALIANO');
 insert into system.query_field(query_name, index_in_query, name, display_value) values('dynamic.informationtool.get_parcel_historic_current_ba', 3, 'area_official_sqm', 'Official area (m2)::::ITALIANO');
 insert into system.query_field(query_name, index_in_query, name) values('dynamic.informationtool.get_parcel_historic_current_ba', 4, 'the_geom');
-insert into system.query_field(query_name, index_in_query, name, display_value) values('dynamic.informationtool.get_region', 0, 'id', '');
+insert into system.query_field(query_name, index_in_query, name) values('dynamic.informationtool.get_region', 0, 'id');
 insert into system.query_field(query_name, index_in_query, name, display_value) values('dynamic.informationtool.get_region', 1, 'code', 'Code');
 insert into system.query_field(query_name, index_in_query, name) values('dynamic.informationtool.get_region', 3, 'the_geom');
-insert into system.query_field(query_name, index_in_query, name, display_value) values('dynamic.informationtool.get_district', 0, 'id', '');
+insert into system.query_field(query_name, index_in_query, name) values('dynamic.informationtool.get_district', 0, 'id');
 insert into system.query_field(query_name, index_in_query, name, display_value) values('dynamic.informationtool.get_district', 1, 'label', 'District');
 insert into system.query_field(query_name, index_in_query, name) values('dynamic.informationtool.get_district', 2, 'the_geom');
 insert into system.query_field(query_name, index_in_query, name) values('dynamic.informationtool.get_section', 0, 'id');
@@ -4757,7 +4757,7 @@ insert into system.query_field(query_name, index_in_query, name, display_value) 
 insert into system.query_field(query_name, index_in_query, name) values('dynamic.informationtool.get_section', 2, 'the_geom');
 insert into system.query_field(query_name, index_in_query, name) values('dynamic.informationtool.get_block', 0, 'id');
 insert into system.query_field(query_name, index_in_query, name, display_value) values('dynamic.informationtool.get_block', 1, 'label', 'Block');
-insert into system.query_field(query_name, index_in_query, name, display_value) values('dynamic.informationtool.get_block', 2, 'the_geom', '');
+insert into system.query_field(query_name, index_in_query, name) values('dynamic.informationtool.get_block', 2, 'the_geom');
 insert into system.query_field(query_name, index_in_query, name, display_value) values('dynamic.informationtool.get_region', 2, 'name', 'Name');
 
 
@@ -5083,6 +5083,7 @@ CREATE TRIGGER __track_history AFTER UPDATE OR DELETE
 --Table application.action_data ----
 DROP TABLE IF EXISTS application.action_data CASCADE;
 CREATE TABLE application.action_data(
+    id varchar(40) NOT NULL,
     action_id varchar(40) NOT NULL,
     type_code varchar(20) NOT NULL,
     data_value varchar(500),
@@ -5094,7 +5095,8 @@ CREATE TABLE application.action_data(
 
     -- Internal constraints
     
-    CONSTRAINT action_data_pkey PRIMARY KEY (action_id,type_code)
+    CONSTRAINT action_data_data UNIQUE (action_id, type_code),
+    CONSTRAINT action_data_pkey PRIMARY KEY (id)
 );
 
 
@@ -5115,6 +5117,7 @@ CREATE TRIGGER __track_changes BEFORE UPDATE OR INSERT
 DROP TABLE IF EXISTS application.action_data_historic CASCADE;
 CREATE TABLE application.action_data_historic
 (
+    id varchar(40),
     action_id varchar(40),
     type_code varchar(20),
     data_value varchar(500),
@@ -5884,11 +5887,11 @@ ALTER TABLE application.application_action ADD CONSTRAINT application_action_sta
 CREATE INDEX application_action_status_id_fk124_ind ON application.application_action (status_id);
 
 ALTER TABLE application.action_data ADD CONSTRAINT action_data_action_id_fk125 
-            FOREIGN KEY (action_id) REFERENCES application.application_action(id) ON UPDATE CASCADE ON DELETE CASCADE;
+            FOREIGN KEY (action_id) REFERENCES application.application_action(id) ON UPDATE CASCADE ON DELETE RESTRICT;
 CREATE INDEX action_data_action_id_fk125_ind ON application.action_data (action_id);
 
 ALTER TABLE application.action_data ADD CONSTRAINT action_data_type_code_fk126 
-            FOREIGN KEY (type_code) REFERENCES application.action_data_field_type(code) ON UPDATE CASCADE ON DELETE CASCADE;
+            FOREIGN KEY (type_code) REFERENCES application.action_data_field_type(code) ON UPDATE CASCADE ON DELETE RESTRICT;
 CREATE INDEX action_data_type_code_fk126_ind ON application.action_data (type_code);
 
 ALTER TABLE application.request_type ADD CONSTRAINT request_type_starting_status_code_fk127 
