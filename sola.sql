@@ -682,6 +682,181 @@ COMMENT ON FUNCTION cadastre.add_topo_points(
 ) IS 'This function searches for any point in source that falls into target. If a point is found then the point it is added in the target.
 It returns the modified target.';
     
+-- Function cadastre.get_first_part --
+CREATE OR REPLACE FUNCTION cadastre.get_first_part(
+ type varchar
+  , the_geom_v geometry
+) RETURNS varchar 
+AS $$
+declare
+  where_is_found varchar;
+  point_on_surface geometry;
+begin
+  point_on_surface = get_geometry_with_srid(ST_PointOnSurface(the_geom_v));
+  
+  if type = 'parcel' then
+    where_is_found = (select id from cadastre.block 
+      where the_geom && point_on_surface and st_intersects(the_geom, point_on_surface));
+  elsif type = 'allodial' then
+    where_is_found = (select id from cadastre.region 
+      where the_geom && point_on_surface and st_intersects(the_geom, point_on_surface));    
+  elsif type = 'building' then
+    where_is_found = (select name_firstpart || '/' || name_lastpart from cadastre.cadastre_object 
+      where status_code = 'current' and type_code= 'parcel'  and 
+      geom_polygon && point_on_surface and st_intersects(geom_polygon, point_on_surface ));    
+  elsif type = 'strata' then
+    where_is_found = (select name_firstpart || '/' || name_lastpart from cadastre.cadastre_object 
+      where status_code = 'current' and type_code= 'building'  and 
+      geom_polygon && point_on_surface and st_intersects(geom_polygon, point_on_surface ));    
+  end if;
+  return coalesce(where_is_found, 'unkown');
+end;
+$$ LANGUAGE plpgsql;
+COMMENT ON FUNCTION cadastre.get_first_part(
+ type varchar
+  , the_geom_v geometry
+) IS '';
+    
+-- Function cadastre.get_last_part --
+CREATE OR REPLACE FUNCTION cadastre.get_last_part(
+ first_part_v varchar
+) RETURNS varchar 
+AS $$
+begin
+  return (select coalesce(max(name_lastpart::integer),0)+1 from cadastre.cadastre_object where name_firstpart = first_part_v);
+end;
+$$ LANGUAGE plpgsql;
+COMMENT ON FUNCTION cadastre.get_last_part(
+ first_part_v varchar
+) IS '';
+    
+-- Function cadastre.snap_geometry_to_geometry --
+CREATE OR REPLACE FUNCTION cadastre.snap_geometry_to_geometry(
+inout geom_to_snap geometry
+  ,inout target_geom geometry
+  , snap_distance double precision
+  , change_target_if_needed bool
+  ,out snapped bool
+  ,out target_is_changed bool
+) RETURNS record 
+AS $$
+DECLARE
+  i integer;
+  nr_elements integer;
+  rec record;
+  rec2 record;
+  point_location float;
+  rings geometry[];
+  
+BEGIN
+  target_is_changed = false;
+  snapped = false;
+  if st_geometrytype(geom_to_snap) not in ('ST_Point', 'ST_LineString', 'ST_Polygon') then
+    raise exception 'geom_to_snap not supported. Only point, linestring and polygon is supported.';
+  end if;
+  if st_geometrytype(geom_to_snap) = 'ST_Point' then
+    -- If the geometry to snap is POINT
+    if st_geometrytype(target_geom) = 'ST_Point' then
+      if st_dwithin(geom_to_snap, target_geom, snap_distance) then
+        geom_to_snap = target_geom;
+        snapped = true;
+      end if;
+    elseif st_geometrytype(target_geom) = 'ST_LineString' then
+      -- Check first if there is any point of linestring where the point can be snapped.
+      select t.* into rec from ST_DumpPoints(target_geom) t where st_dwithin(geom_to_snap, t.geom, snap_distance);
+      if rec is not null then
+        geom_to_snap = rec.geom;
+        snapped = true;
+        return;
+      end if;
+      --Check second if the point is within distance from linestring and get an interpolation point in the line.
+      if st_dwithin(geom_to_snap, target_geom, snap_distance) then
+        point_location = ST_Line_Locate_Point(target_geom, geom_to_snap);
+        geom_to_snap = ST_Line_Interpolate_Point(target_geom, point_location);
+        if change_target_if_needed then
+          target_geom = ST_LineMerge(ST_Union(ST_Line_Substring(target_geom, 0, point_location), ST_Line_Substring(target_geom, point_location, 1)));
+          target_is_changed = true;
+        end if;
+        snapped = true;  
+      end if;
+    elseif st_geometrytype(target_geom) = 'ST_Polygon' then
+      select  array_agg(ST_ExteriorRing(geom)) into rings from ST_DumpRings(target_geom);
+      nr_elements = array_upper(rings,1);
+      i = 1;
+      while i <= nr_elements loop
+        select t.* into rec from cadastre.snap_geometry_to_geometry(geom_to_snap, rings[i], snap_distance, change_target_if_needed) t;
+        if rec.snapped then
+          geom_to_snap = rec.geom_to_snap;
+          snapped = true;
+          if change_target_if_needed then
+            rings[i] = rec.target_geom;
+            target_geom = ST_MakePolygon(rings[1], rings[2:nr_elements]);
+            target_is_changed = rec.target_is_changed;
+            return;
+          end if;
+        end if;
+        i = i+1;
+      end loop;
+    end if;
+  elseif st_geometrytype(geom_to_snap) = 'ST_LineString' then
+    nr_elements = st_npoints(geom_to_snap);
+    i = 1;
+    while i <= nr_elements loop
+      select t.* into rec
+        from cadastre.snap_geometry_to_geometry(st_pointn(geom_to_snap,i), target_geom, snap_distance, change_target_if_needed) t;
+      if rec.snapped then
+        if rec.target_is_changed then
+          target_geom= rec.target_geom;
+          target_is_changed = true;
+        end if;
+        geom_to_snap = st_setpoint(geom_to_snap, i-1, rec.geom_to_snap);
+        snapped = true;
+      end if;
+      i = i+1;
+    end loop;
+    -- For each point of the target checks if it can snap to the geom_to_snap
+    for rec in select * from ST_DumpPoints(target_geom) t 
+      where st_dwithin(geom_to_snap, t.geom, snap_distance) loop
+      select t.* into rec2
+        from cadastre.snap_geometry_to_geometry(rec.geom, geom_to_snap, snap_distance, true) t;
+      if rec2.target_is_changed then
+        geom_to_snap = rec2.target_geom;
+        snapped = true;
+      end if;
+    end loop;
+  elseif st_geometrytype(geom_to_snap) = 'ST_Polygon' then
+    select  array_agg(ST_ExteriorRing(geom)) into rings from ST_DumpRings(geom_to_snap);
+    nr_elements = array_upper(rings,1);
+    i = 1;
+    while i <= nr_elements loop
+      select t.* into rec
+        from cadastre.snap_geometry_to_geometry(rings[i], target_geom, snap_distance, change_target_if_needed) t;
+      if rec.snapped then
+        rings[i] = rec.geom_to_snap;
+        if rec.target_is_changed then
+          target_geom = rec.target_geom;
+          target_is_changed = true;
+        end if;
+        snapped = true;
+      end if;
+      i= i+1;
+    end loop;
+    if snapped then
+      geom_to_snap = ST_MakePolygon(rings[1], rings[2:nr_elements]);
+    end if;
+  end if;
+  return;
+END;
+$$ LANGUAGE plpgsql;
+COMMENT ON FUNCTION cadastre.snap_geometry_to_geometry(
+inout geom_to_snap geometry
+  ,inout target_geom geometry
+  , snap_distance double precision
+  , change_target_if_needed bool
+  ,out snapped bool
+  ,out target_is_changed bool
+) IS 'It snaps one geometry to the other. If points needs to be added they will be added.';
+    
     
 select clean_db('public');
     
@@ -2575,8 +2750,8 @@ Not Applicable';
  -- Data for the table application.request_type -- 
 insert into application.request_type(code, request_category_code, display_value, status, nr_days_to_complete, base_fee, area_base_fee, value_base_fee, nr_properties_required, starting_status_code) values('smdPlanApprov', 'registrationServices', 'Plan approval', 'c', 10, 100, 100, 100, 100, 'smdplanapp-submit');
 insert into application.request_type(code, request_category_code, display_value, status, nr_days_to_complete, base_fee, area_base_fee, value_base_fee, nr_properties_required, starting_status_code) values('smdApplyRegNo', 'registrationServices', 'Regional number', 'c', 10, 100, 100, 100, 100, 'smdregnr-submit');
-insert into application.request_type(code, request_category_code, display_value, status, nr_days_to_complete, base_fee, area_base_fee, value_base_fee, nr_properties_required, starting_status_code) values('smdCadChange', 'registrationServices', 'Cadastre change', 'c', 10, 100, 100, 100, 1, 'smdcadchange-submit');
-insert into application.request_type(code, request_category_code, display_value, status, nr_days_to_complete, base_fee, area_base_fee, value_base_fee, nr_properties_required, starting_status_code) values('smdCadRedefine', 'registrationServices', 'Redefine cadastre', 'c', 10, 100, 100, 100, 1, 'smdcadredef-submit');
+insert into application.request_type(code, request_category_code, display_value, status, nr_days_to_complete, base_fee, area_base_fee, value_base_fee, nr_properties_required, starting_status_code) values('cadastreChange', 'registrationServices', 'Cadastre change', 'c', 10, 100, 100, 100, 1, 'smdcadchange-submit');
+insert into application.request_type(code, request_category_code, display_value, status, nr_days_to_complete, base_fee, area_base_fee, value_base_fee, nr_properties_required, starting_status_code) values('redefineCadastre', 'registrationServices', 'Redefine cadastre', 'c', 10, 100, 100, 100, 1, 'smdcadredef-submit');
 
 
 
@@ -3337,10 +3512,10 @@ Not Applicable';
     
  -- Data for the table system.setting -- 
 insert into system.setting(name, vl, active, description) values('map-srid', '32630', true, 'The srid of the geographic data that are administered in the system.');
-insert into system.setting(name, vl, active, description) values('map-west', '812000', true, 'The most west coordinate. It is used in the map control.');
-insert into system.setting(name, vl, active, description) values('map-south', '615000', true, 'The most south coordinate. It is used in the map control.');
-insert into system.setting(name, vl, active, description) values('map-east', '814200', true, 'The most east coordinate. It is used in the map control.');
-insert into system.setting(name, vl, active, description) values('map-north', '617200', true, 'The most north coordinate. It is used in the map control.');
+insert into system.setting(name, vl, active, description) values('map-west', '807000', true, 'The most west coordinate. It is used in the map control.');
+insert into system.setting(name, vl, active, description) values('map-south', '612400', true, 'The most south coordinate. It is used in the map control.');
+insert into system.setting(name, vl, active, description) values('map-east', '816600', true, 'The most east coordinate. It is used in the map control.');
+insert into system.setting(name, vl, active, description) values('map-north', '622000', true, 'The most north coordinate. It is used in the map control.');
 insert into system.setting(name, vl, active, description) values('map-tolerance', '0.01', true, 'The tolerance that is used while snapping geometries to each other. If two points are within this distance are considered being in the same location.');
 insert into system.setting(name, vl, active, description) values('map-shift-tolerance-rural', '20', true, 'The shift tolerance of boundary points used in cadastre change in rural areas.');
 insert into system.setting(name, vl, active, description) values('map-shift-tolerance-urban', '5', true, 'The shift tolerance of boundary points used in cadastre change in urban areas.');
@@ -3439,6 +3614,8 @@ insert into system.config_map_layer(name, title, type_code, active, visible_in_s
 insert into system.config_map_layer(name, title, type_code, active, visible_in_start, item_order, style, pojo_structure, pojo_query_name, pojo_query_name_for_select) values('districts', 'Districts', 'pojo', true, true, 90, 'district.xml', 'theGeom:Polygon,label:""', 'SpatialResult.getDistrict', 'dynamic.informationtool.get_district');
 insert into system.config_map_layer(name, title, type_code, active, visible_in_start, item_order, style, pojo_structure, pojo_query_name, pojo_query_name_for_select) values('sections', 'Sections', 'pojo', true, true, 100, 'section.xml', 'theGeom:Polygon,label:""', 'SpatialResult.getSection', 'dynamic.informationtool.get_section');
 insert into system.config_map_layer(name, title, type_code, active, visible_in_start, item_order, style, pojo_structure, pojo_query_name, pojo_query_name_for_select) values('blocks', 'Blocks', 'pojo', true, true, 110, 'block.xml', 'theGeom:Polygon,label:""', 'SpatialResult.getBlock', 'dynamic.informationtool.get_block');
+insert into system.config_map_layer(name, title, type_code, active, visible_in_start, item_order, style, pojo_structure, pojo_query_name, pojo_query_name_for_select) values('buildings', 'Buildings', 'pojo', true, true, 120, 'building.xml', 'theGeom:Polygon,label:""', 'SpatialResult.getBuildings', 'dynamic.informationtool.get_building');
+insert into system.config_map_layer(name, title, type_code, active, visible_in_start, item_order, style, pojo_structure, pojo_query_name, pojo_query_name_for_select) values('allodials', 'Allodials', 'pojo', true, true, 130, 'allodial.xml', 'theGeom:Polygon,label:""', 'SpatialResult.getAllodials', 'dynamic.informationtool.get_allodial');
 
 
 
@@ -4552,6 +4729,10 @@ insert into system.query(name, sql) values('dynamic.informationtool.get_block', 
 insert into system.query(name, sql) values('map_search.district', 'select id, name as label, st_asewkb(geom) as the_geom from cadastre.spatial_unit_group where compare_strings(#{search_string}, name) and hierarchy_level=2 limit 30');
 insert into system.query(name, sql) values('map_search.section', 'select id, name as label, st_asewkb(geom) as the_geom from cadastre.spatial_unit_group where compare_strings(#{search_string}, name) and hierarchy_level=2 limit 30');
 insert into system.query(name, sql) values('map_search.block', 'select id, name as label, st_asewkb(geom) as the_geom from cadastre.spatial_unit_group where compare_strings(#{search_string}, name) and hierarchy_level=2 limit 30');
+insert into system.query(name, sql) values('SpatialResult.getBuildings', 'select co.id, co.name_lastpart as label,  st_asewkb(co.geom_polygon) as the_geom from cadastre.cadastre_object co where type_code= ''building'' and status_code= ''current'' and ST_Intersects(co.geom_polygon, ST_SetSRID(ST_MakeBox3D(ST_Point(#{minx}, #{miny}),ST_Point(#{maxx}, #{maxy})), #{srid}))');
+insert into system.query(name, sql) values('dynamic.informationtool.get_building', 'select co.id, co.name_firstpart || ''/'' || co.name_lastpart as nr, ( SELECT spatial_value_area.size FROM cadastre.spatial_value_area      WHERE spatial_value_area.type_code=''officialArea'' and spatial_value_area.spatial_unit_id = co.id) AS area_official_sqm,       st_asewkb(co.geom_polygon) as the_geom      from cadastre.cadastre_object co      where type_code= ''building'' and status_code= ''current''      and ST_Intersects(co.geom_polygon, ST_SetSRID(ST_GeomFromWKB(#{wkb_geom}), #{srid}))');
+insert into system.query(name, sql) values('SpatialResult.getAllodials', 'select co.id, co.name_lastpart as label,  st_asewkb(co.geom_polygon) as the_geom from cadastre.cadastre_object co where type_code= ''allodial'' and status_code= ''current'' and ST_Intersects(co.geom_polygon, ST_SetSRID(ST_MakeBox3D(ST_Point(#{minx}, #{miny}),ST_Point(#{maxx}, #{maxy})), #{srid}))');
+insert into system.query(name, sql) values('dynamic.informationtool.get_allodial', 'select co.id, co.name_firstpart || ''/'' || co.name_lastpart as nr, ( SELECT spatial_value_area.size FROM cadastre.spatial_value_area      WHERE spatial_value_area.type_code=''officialArea'' and spatial_value_area.spatial_unit_id = co.id) AS area_official_sqm,       st_asewkb(co.geom_polygon) as the_geom      from cadastre.cadastre_object co      where type_code= ''allodial'' and status_code= ''current''      and ST_Intersects(co.geom_polygon, ST_SetSRID(ST_GeomFromWKB(#{wkb_geom}), #{srid}))');
 
 
 
@@ -4759,6 +4940,12 @@ insert into system.query_field(query_name, index_in_query, name) values('dynamic
 insert into system.query_field(query_name, index_in_query, name, display_value) values('dynamic.informationtool.get_block', 1, 'label', 'Block');
 insert into system.query_field(query_name, index_in_query, name) values('dynamic.informationtool.get_block', 2, 'the_geom');
 insert into system.query_field(query_name, index_in_query, name, display_value) values('dynamic.informationtool.get_region', 2, 'name', 'Name');
+insert into system.query_field(query_name, index_in_query, name) values('dynamic.informationtool.get_building', 0, 'id');
+insert into system.query_field(query_name, index_in_query, name, display_value) values('dynamic.informationtool.get_building', 1, 'nr', 'Number');
+insert into system.query_field(query_name, index_in_query, name) values('dynamic.informationtool.get_building', 2, 'the_geom');
+insert into system.query_field(query_name, index_in_query, name) values('dynamic.informationtool.get_allodial', 0, 'id');
+insert into system.query_field(query_name, index_in_query, name, display_value) values('dynamic.informationtool.get_allodial', 1, 'nr', 'Number');
+insert into system.query_field(query_name, index_in_query, name) values('dynamic.informationtool.get_allodial', 2, 'the_geom');
 
 
 
@@ -6029,6 +6216,9 @@ BEGIN
   if (select count(*)=0 from cadastre.spatial_unit where id=new.id) then
     insert into cadastre.spatial_unit(id, rowidentifier, change_user) 
     values(new.id, new.rowidentifier,new.change_user);
+  end if;
+  if new.type_code != 'strata' and (new.name_lastpart is null or new.name_lastpart like 'tmp%') then
+    new.name_lastpart = cadastre.get_last_part(new.name_firstpart);
   end if;
   return new;
 END;

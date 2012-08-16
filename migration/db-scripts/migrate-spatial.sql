@@ -7,6 +7,14 @@ select region as region_id, distric_nr as num, 'District ' || distric_nr as loca
 0 as year_declared, st_geometryn(the_geom,1) as the_geom 
 from staging_area.d03;
 
+--View that gives the sections
+drop view if exists staging_area.section_source;
+create or replace view staging_area.section_source as 
+select b.region, substring(b.section  from 2 for 3) as num, st_union(st_geometryn(b.geom,1)) as the_geom
+from staging_area.shape_block b inner join staging_area.district_source d on st_intersects(st_centroid(b.geom), d.the_geom)
+group by b.region, b.section;
+
+
 --View that gives the parcels
 create or replace view staging_area.parcel as 
 select 
@@ -63,9 +71,17 @@ st_transform(the_geom,32630) as the_geom
 from staging_area.district_source
 where the_geom is not null and st_isvalid(the_geom);
 
--- Insert sections. Sections have hierarchy 3
+-- Insert sections.
+insert into cadastre.section(id, district_id, num, the_geom)
+select s.region || '/' || d.num || '/' || s.num as id, s.region || '/' || d.num as district_id, 
+s.num, st_transform(s.the_geom,32630)
+from staging_area.section_source s inner join staging_area.district_source d on st_intersects(st_centroid(s.the_geom), d.the_geom);
 
--- Insert blocks. Blocks have hierarchy 4
+-- Insert blocks. 
+insert into cadastre.block(id, section_id, num, the_geom)
+select s.id || '/' || b.blockno as id, s.id as section_id, blockno as num,  st_geometryn(st_union(st_transform(b.geom, 32630)),1) as the_geom
+from staging_area.shape_block b inner join cadastre.section s on st_intersects(st_transform(st_centroid(b.geom), 32630), s.the_geom)
+group by s.id, blockno; 
 
 -- Insert parcels. It excludes parcels that miss part of the identifier or their identifier is used more than once or the geometry is not valid
 insert into cadastre.cadastre_object(id, type_code, name_firstpart, name_lastpart, status_code, geom_polygon, transaction_id)
