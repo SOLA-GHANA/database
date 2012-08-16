@@ -35,6 +35,19 @@ values('generate-baunit-nr', now(), 'infinity',
 || ''/'' || trim(to_char(nextval(''administrative.ba_unit_last_name_part_seq''), ''0000'')) AS vl');
 
 ----------------------------------------------------------------------------------------------------
+insert into system.br(id, technical_type_code) values('generate-cadastre-object-first-part', 'sql');
+ 
+insert into system.br_definition(br_id, active_from, active_until, body) 
+values('generate-cadastre-object-first-part', now(), 'infinity', 
+'select cadastre.get_first_part(#{type}, #{the_geom}) AS vl');
+----------------------------------------------------------------------------------------------------
+insert into system.br(id, technical_type_code) values('generate-cadastre-object-last-part', 'sql');
+ 
+insert into system.br_definition(br_id, active_from, active_until, body) 
+values('generate-cadastre-object-last-part', now(), 'infinity', 
+'select cadastre.get_last_part(#{first_part}) AS vl');
+----------------------------------------------------------------------------------------------------
+
 
 update system.br set display_name = id where display_name !=id;
 
