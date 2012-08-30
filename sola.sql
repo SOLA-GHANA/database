@@ -93,15 +93,22 @@ CREATE OR REPLACE FUNCTION public.f_for_trg_track_history(
 ) RETURNS trigger 
 AS $$
 DECLARE
-    table_name varchar;
+    table_name_main varchar;
     table_name_historic varchar;
+    insert_col_part varchar;
+    values_part varchar;
 BEGIN
-    table_name = TG_TABLE_SCHEMA || '.' || TG_TABLE_NAME;
-    table_name_historic = table_name || '_historic';
+    table_name_main = TG_TABLE_SCHEMA || '.' || TG_TABLE_NAME;
+    table_name_historic = table_name_main || '_historic';
+    insert_col_part = (select string_agg(column_name, ',') 
+      from information_schema.columns  
+      where table_schema= TG_TABLE_SCHEMA and table_name = TG_TABLE_NAME);
+    values_part = '$1.' || replace(insert_col_part, ',' , ',$1.');
+
     IF (TG_OP = 'DELETE') THEN
         OLD.change_action := 'd';
     END IF;
-    EXECUTE 'INSERT INTO ' || table_name_historic || ' SELECT $1.*;' USING OLD;
+    EXECUTE 'INSERT INTO ' || table_name_historic || '(' || insert_col_part || ') SELECT ' || values_part || ';' USING OLD;
     IF (TG_OP = 'DELETE') THEN
         RETURN OLD;
     ELSE
@@ -880,6 +887,9 @@ CREATE TABLE source.source(
     content varchar(4000),
     status_code varchar(20),
     transaction_id varchar(40),
+    owner_name varchar(255),
+    version varchar(10),
+    description varchar(255),
     rowidentifier varchar(40) NOT NULL DEFAULT (uuid_generate_v1()),
     rowversion integer NOT NULL DEFAULT (0),
     change_action char(1) NOT NULL DEFAULT ('i'),
@@ -929,6 +939,9 @@ CREATE TABLE source.source_historic
     content varchar(4000),
     status_code varchar(20),
     transaction_id varchar(40),
+    owner_name varchar(255),
+    version varchar(10),
+    description varchar(255),
     rowidentifier varchar(40),
     rowversion integer,
     change_action char(1),
@@ -983,7 +996,7 @@ CREATE TABLE source.administrative_source_type(
     code varchar(20) NOT NULL,
     display_value varchar(250) NOT NULL,
     status char(1) NOT NULL,
-    has_status bool NOT NULL DEFAULT (false),
+    is_for_registration bool NOT NULL DEFAULT (false),
     description varchar(555),
 
     -- Internal constraints
@@ -1000,24 +1013,24 @@ LADM Definition
 Not Defined';
     
  -- Data for the table source.administrative_source_type -- 
-insert into source.administrative_source_type(code, display_value, status, has_status) values('agriConsent', 'Agricultural Consent::::Permesso Agricolo', 'x', false);
-insert into source.administrative_source_type(code, display_value, status, has_status) values('agriLease', 'Agricultural Lease::::Contratto Affitto Agricolo', 'x', false);
-insert into source.administrative_source_type(code, display_value, status, has_status) values('agriNotaryStatement', 'Agricultural Notary Statement::::Dichiarazione Agricola Notaio', 'x', false);
-insert into source.administrative_source_type(code, display_value, status, has_status) values('deed', 'Deed', 'c', false);
-insert into source.administrative_source_type(code, display_value, status, has_status) values('lease', 'Lease::::ITALIANO', 'c', false);
-insert into source.administrative_source_type(code, display_value, status, has_status) values('mortgage', 'Mortgage::::Ipoteca', 'c', false);
-insert into source.administrative_source_type(code, display_value, status, has_status) values('title', 'Title::::Titolo', 'c', false);
-insert into source.administrative_source_type(code, display_value, status, has_status, description) values('proclamation', 'Proclamation::::Bando', 'c', false, 'Extension to LADM');
-insert into source.administrative_source_type(code, display_value, status, has_status, description) values('courtOrder', 'Court Order::::Ordine Tribunale', 'c', false, 'Extension to LADM');
-insert into source.administrative_source_type(code, display_value, status, has_status, description) values('agreement', 'Agreement::::Accordo', 'c', false, 'Extension to LADM');
-insert into source.administrative_source_type(code, display_value, status, has_status, description) values('contractForSale', 'Contract for Sale::::ITALIANO', 'c', false, 'Extension to LADM');
-insert into source.administrative_source_type(code, display_value, status, has_status, description) values('will', 'Will::::ITALIANO', 'c', false, 'Extension to LADM');
-insert into source.administrative_source_type(code, display_value, status, has_status, description) values('powerOfAttorney', 'Power of Attorney::::ITALIANO', 'c', true, 'Extension to LADM');
-insert into source.administrative_source_type(code, display_value, status, has_status, description) values('standardDocument', 'Standard Document::::ITALIANO', 'c', false, 'Extension to LADM');
-insert into source.administrative_source_type(code, display_value, status, has_status, description) values('cadastralMap', 'Cadastral Map::::Mappa Catastale', 'c', false, 'Extension to LADM');
-insert into source.administrative_source_type(code, display_value, status, has_status, description) values('cadastralSurvey', 'Cadastral Survey::::Rilevamento Catastale', 'c', false, 'Extension to LADM');
-insert into source.administrative_source_type(code, display_value, status, has_status, description) values('waiver', 'Waiver to Caveat or other requirement', 'c', false, 'Extension to LADM');
-insert into source.administrative_source_type(code, display_value, status, has_status, description) values('idVerification', 'Form of Identification including Personal ID', 'c', false, 'Extension to LADM');
+insert into source.administrative_source_type(code, display_value, status, is_for_registration) values('agriConsent', 'Agricultural Consent::::Permesso Agricolo', 'x', false);
+insert into source.administrative_source_type(code, display_value, status, is_for_registration) values('agriLease', 'Agricultural Lease::::Contratto Affitto Agricolo', 'x', false);
+insert into source.administrative_source_type(code, display_value, status, is_for_registration) values('agriNotaryStatement', 'Agricultural Notary Statement::::Dichiarazione Agricola Notaio', 'x', false);
+insert into source.administrative_source_type(code, display_value, status, is_for_registration) values('deed', 'Deed', 'c', false);
+insert into source.administrative_source_type(code, display_value, status, is_for_registration) values('lease', 'Lease::::ITALIANO', 'c', false);
+insert into source.administrative_source_type(code, display_value, status, is_for_registration) values('mortgage', 'Mortgage::::Ipoteca', 'c', false);
+insert into source.administrative_source_type(code, display_value, status, is_for_registration) values('title', 'Title::::Titolo', 'c', false);
+insert into source.administrative_source_type(code, display_value, status, is_for_registration, description) values('proclamation', 'Proclamation::::Bando', 'c', false, 'Extension to LADM');
+insert into source.administrative_source_type(code, display_value, status, is_for_registration, description) values('courtOrder', 'Court Order::::Ordine Tribunale', 'c', false, 'Extension to LADM');
+insert into source.administrative_source_type(code, display_value, status, is_for_registration, description) values('agreement', 'Agreement::::Accordo', 'c', false, 'Extension to LADM');
+insert into source.administrative_source_type(code, display_value, status, is_for_registration, description) values('contractForSale', 'Contract for Sale::::ITALIANO', 'c', false, 'Extension to LADM');
+insert into source.administrative_source_type(code, display_value, status, is_for_registration, description) values('will', 'Will::::ITALIANO', 'c', false, 'Extension to LADM');
+insert into source.administrative_source_type(code, display_value, status, is_for_registration, description) values('powerOfAttorney', 'Power of Attorney::::ITALIANO', 'c', true, 'Extension to LADM');
+insert into source.administrative_source_type(code, display_value, status, is_for_registration, description) values('standardDocument', 'Standard Document::::ITALIANO', 'c', false, 'Extension to LADM');
+insert into source.administrative_source_type(code, display_value, status, is_for_registration, description) values('cadastralMap', 'Cadastral Map::::Mappa Catastale', 'c', false, 'Extension to LADM');
+insert into source.administrative_source_type(code, display_value, status, is_for_registration, description) values('cadastralSurvey', 'Cadastral Survey::::Rilevamento Catastale', 'c', false, 'Extension to LADM');
+insert into source.administrative_source_type(code, display_value, status, is_for_registration, description) values('waiver', 'Waiver to Caveat or other requirement', 'c', false, 'Extension to LADM');
+insert into source.administrative_source_type(code, display_value, status, is_for_registration, description) values('idVerification', 'Form of Identification including Personal ID', 'c', false, 'Extension to LADM');
 
 
 
@@ -4709,7 +4722,7 @@ comment on table system.query is 'It defines a query that can be executed by the
 insert into system.query(name, sql) values('SpatialResult.getParcels', 'select co.id, co.name_lastpart as label,  st_asewkb(co.geom_polygon) as the_geom from cadastre.cadastre_object co where type_code= ''parcel'' and status_code= ''current'' and ST_Intersects(co.geom_polygon, ST_SetSRID(ST_MakeBox3D(ST_Point(#{minx}, #{miny}),ST_Point(#{maxx}, #{maxy})), #{srid}))');
 insert into system.query(name, sql) values('SpatialResult.getParcelsPending', 'select co.id, co.name_lastpart as label,  st_asewkb(co.geom_polygon) as the_geom  from cadastre.cadastre_object co  where type_code= ''parcel'' and status_code= ''pending''   and ST_Intersects(co.geom_polygon, ST_SetSRID(ST_MakeBox3D(ST_Point(#{minx}, #{miny}),ST_Point(#{maxx}, #{maxy})), #{srid})) union select co.id, co.name_firstpart || ''/'' || co.name_lastpart as label,  st_asewkb(co_t.geom_polygon) as the_geom  from cadastre.cadastre_object co inner join cadastre.cadastre_object_target co_t on co.id = co_t.cadastre_object_id and co_t.geom_polygon is not null where ST_Intersects(co_t.geom_polygon, ST_SetSRID(ST_MakeBox3D(ST_Point(#{minx}, #{miny}),ST_Point(#{maxx}, #{maxy})), #{srid}))       and co_t.transaction_id in (select id from transaction.transaction where status_code not in (''approved'')) ');
 insert into system.query(name, sql) values('SpatialResult.getApplications', 'select id, nr as label, st_asewkb(location) as the_geom from application.application where ST_Intersects(location, ST_SetSRID(ST_MakeBox3D(ST_Point(#{minx}, #{miny}),ST_Point(#{maxx}, #{maxy})), #{srid}))');
-insert into system.query(name, sql) values('dynamic.informationtool.get_parcel', 'select co.id, co.name_firstpart || ''/'' || co.name_lastpart as parcel_nr,      (select string_agg(ba.name_firstpart || ''/'' || ba.name_lastpart, '','')      from administrative.ba_unit_contains_spatial_unit bas, administrative.ba_unit ba      where spatial_unit_id= co.id and bas.ba_unit_id= ba.id) as ba_units,      ( SELECT spatial_value_area.size FROM cadastre.spatial_value_area      WHERE spatial_value_area.type_code=''officialArea'' and spatial_value_area.spatial_unit_id = co.id) AS area_official_sqm,       st_asewkb(co.geom_polygon) as the_geom      from cadastre.cadastre_object co      where type_code= ''parcel'' and status_code= ''current''      and ST_Intersects(co.geom_polygon, ST_SetSRID(ST_GeomFromWKB(#{wkb_geom}), #{srid}))');
+insert into system.query(name, sql) values('dynamic.informationtool.get_parcel', 'select co.id, co.name_firstpart || ''/'' || co.name_lastpart as parcel_nr,       (select string_agg(ba.name_firstpart || ''/'' || ba.name_lastpart, '','')       from administrative.ba_unit_contains_spatial_unit bas, administrative.ba_unit ba       where spatial_unit_id= co.id and bas.ba_unit_id= ba.id) as ba_units,       ( SELECT spatial_value_area.size FROM cadastre.spatial_value_area       WHERE spatial_value_area.type_code=''officialArea'' and spatial_value_area.spatial_unit_id = co.id) AS area_official_sqm,        ( SELECT spatial_value_area.size * 10.76 FROM cadastre.spatial_value_area       WHERE spatial_value_area.type_code=''officialArea'' and spatial_value_area.spatial_unit_id = co.id) AS area_official_sqf,        st_asewkb(co.geom_polygon) as the_geom      from cadastre.cadastre_object co      where type_code= ''parcel'' and status_code= ''current''      and ST_Intersects(co.geom_polygon, ST_SetSRID(ST_GeomFromWKB(#{wkb_geom}), #{srid}))');
 insert into system.query(name, sql) values('dynamic.informationtool.get_parcel_pending', 'select co.id, co.name_firstpart || ''/'' || co.name_lastpart as parcel_nr,       ( SELECT spatial_value_area.size FROM cadastre.spatial_value_area         WHERE spatial_value_area.type_code=''officialArea'' and spatial_value_area.spatial_unit_id = co.id) AS area_official_sqm,   st_asewkb(co.geom_polygon) as the_geom    from cadastre.cadastre_object co  where type_code= ''parcel'' and ((status_code= ''pending''    and ST_Intersects(co.geom_polygon, ST_SetSRID(ST_GeomFromWKB(#{wkb_geom}), #{srid})))   or (co.id in (select cadastre_object_id           from cadastre.cadastre_object_target co_t inner join transaction.transaction t on co_t.transaction_id=t.id           where ST_Intersects(co_t.geom_polygon, ST_SetSRID(ST_GeomFromWKB(#{wkb_geom}), #{srid})) and t.status_code not in (''approved''))))');
 insert into system.query(name, sql) values('dynamic.informationtool.get_application', 'select id, nr,  st_asewkb(location) as the_geom from application.application where ST_Intersects(location, ST_SetSRID(ST_GeomFromWKB(#{wkb_geom}), #{srid}))');
 insert into system.query(name, sql) values('SpatialResult.getParcelsHistoricWithCurrentBA', 'select co.id, co.name_firstpart || ''/'' || co.name_lastpart as label,  st_asewkb(co.geom_polygon) as the_geom from cadastre.cadastre_object co inner join administrative.ba_unit_contains_spatial_unit ba_co on co.id = ba_co.spatial_unit_id   inner join administrative.ba_unit ba_unit on ba_unit.id= ba_co.ba_unit_id where co.type_code=''parcel'' and co.status_code= ''historic'' and ba_unit.status_code = ''current'' and ST_Intersects(co.geom_polygon, ST_SetSRID(ST_MakeBox3D(ST_Point(#{minx}, #{miny}),ST_Point(#{maxx}, #{maxy})), #{srid}))');
@@ -4726,9 +4739,9 @@ insert into system.query(name, sql) values('dynamic.informationtool.get_region',
 insert into system.query(name, sql) values('dynamic.informationtool.get_district', 'select sup.id, sup.num as label,  st_asewkb(sup.the_geom) as the_geom from cadastre.district as sup where ST_Intersects(sup.the_geom, ST_SetSRID(ST_GeomFromWKB(#{wkb_geom}), #{srid}))');
 insert into system.query(name, sql) values('dynamic.informationtool.get_section', 'select sup.id, sup.num as label,  st_asewkb(sup.the_geom) as the_geom from cadastre.section as sup where ST_Intersects(sup.the_geom, ST_SetSRID(ST_GeomFromWKB(#{wkb_geom}), #{srid}))');
 insert into system.query(name, sql) values('dynamic.informationtool.get_block', 'select sup.id, sup.num as label,  st_asewkb(sup.the_geom) as the_geom from cadastre.block as sup where ST_Intersects(sup.the_geom, ST_SetSRID(ST_GeomFromWKB(#{wkb_geom}), #{srid}))');
-insert into system.query(name, sql) values('map_search.district', 'select id, name as label, st_asewkb(geom) as the_geom from cadastre.spatial_unit_group where compare_strings(#{search_string}, name) and hierarchy_level=2 limit 30');
-insert into system.query(name, sql) values('map_search.section', 'select id, name as label, st_asewkb(geom) as the_geom from cadastre.spatial_unit_group where compare_strings(#{search_string}, name) and hierarchy_level=2 limit 30');
-insert into system.query(name, sql) values('map_search.block', 'select id, name as label, st_asewkb(geom) as the_geom from cadastre.spatial_unit_group where compare_strings(#{search_string}, name) and hierarchy_level=2 limit 30');
+insert into system.query(name, sql) values('map_search.district', 'select id, id as label, st_asewkb(the_geom) as the_geom from cadastre.district where compare_strings(#{search_string}, id) limit 30');
+insert into system.query(name, sql) values('map_search.section', 'select id, id || coalesce(''('' || locality || '')'', '''') as label, st_asewkb(the_geom) as the_geom from cadastre.section where compare_strings(#{search_string}, id || coalesce(''('' || locality || '')'', '''')) limit 30');
+insert into system.query(name, sql) values('map_search.block', 'select id, id as label, st_asewkb(the_geom) as the_geom from cadastre.block where compare_strings(#{search_string}, id) limit 30');
 insert into system.query(name, sql) values('SpatialResult.getBuildings', 'select co.id, co.name_lastpart as label,  st_asewkb(co.geom_polygon) as the_geom from cadastre.cadastre_object co where type_code= ''building'' and status_code= ''current'' and ST_Intersects(co.geom_polygon, ST_SetSRID(ST_MakeBox3D(ST_Point(#{minx}, #{miny}),ST_Point(#{maxx}, #{maxy})), #{srid}))');
 insert into system.query(name, sql) values('dynamic.informationtool.get_building', 'select co.id, co.name_firstpart || ''/'' || co.name_lastpart as nr, ( SELECT spatial_value_area.size FROM cadastre.spatial_value_area      WHERE spatial_value_area.type_code=''officialArea'' and spatial_value_area.spatial_unit_id = co.id) AS area_official_sqm,       st_asewkb(co.geom_polygon) as the_geom      from cadastre.cadastre_object co      where type_code= ''building'' and status_code= ''current''      and ST_Intersects(co.geom_polygon, ST_SetSRID(ST_GeomFromWKB(#{wkb_geom}), #{srid}))');
 insert into system.query(name, sql) values('SpatialResult.getAllodials', 'select co.id, co.name_lastpart as label,  st_asewkb(co.geom_polygon) as the_geom from cadastre.cadastre_object co where type_code= ''allodial'' and status_code= ''current'' and ST_Intersects(co.geom_polygon, ST_SetSRID(ST_MakeBox3D(ST_Point(#{minx}, #{miny}),ST_Point(#{maxx}, #{maxy})), #{srid}))');
@@ -4881,10 +4894,10 @@ CREATE TABLE system.map_search_option(
 comment on table system.map_search_option is 'This table contains information about the options to search objects in the map. The list of options here will be used to configure the list of search by options in the Map Search Component.';
     
  -- Data for the table system.map_search_option -- 
-insert into system.map_search_option(code, title, query_name, active, min_search_str_len, zoom_in_buffer) values('NUMBER', 'Number', 'map_search.cadastre_object_by_number', true, 3, 50);
-insert into system.map_search_option(code, title, query_name, active, min_search_str_len, zoom_in_buffer) values('BAUNIT', 'Property number', 'map_search.cadastre_object_by_baunit', true, 3, 50);
-insert into system.map_search_option(code, title, query_name, active, min_search_str_len, zoom_in_buffer) values('OWNER_OF_BAUNIT', 'Property owner', 'map_search.cadastre_object_by_baunit_owner', true, 3, 50);
-insert into system.map_search_option(code, title, query_name, active, min_search_str_len, zoom_in_buffer) values('DISTRICT', 'District', 'map_search.district', true, 3, 50);
+insert into system.map_search_option(code, title, query_name, active, min_search_str_len, zoom_in_buffer) values('NUMBER', 'Parcel by number', 'map_search.cadastre_object_by_number', true, 3, 50);
+insert into system.map_search_option(code, title, query_name, active, min_search_str_len, zoom_in_buffer) values('BAUNIT', 'Parcel by property number', 'map_search.cadastre_object_by_baunit', true, 3, 50);
+insert into system.map_search_option(code, title, query_name, active, min_search_str_len, zoom_in_buffer) values('OWNER_OF_BAUNIT', 'Parcel by property owner', 'map_search.cadastre_object_by_baunit_owner', true, 3, 50);
+insert into system.map_search_option(code, title, query_name, active, min_search_str_len, zoom_in_buffer) values('DISTRICT', 'District', 'map_search.district', true, 2, 50);
 insert into system.map_search_option(code, title, query_name, active, min_search_str_len, zoom_in_buffer) values('SECTION', 'Section', 'map_search.section', true, 3, 50);
 insert into system.map_search_option(code, title, query_name, active, min_search_str_len, zoom_in_buffer) values('BLOCK', 'Block', 'map_search.block', true, 3, 50);
 
@@ -4914,7 +4927,7 @@ insert into system.query_field(query_name, index_in_query, name, display_value) 
 insert into system.query_field(query_name, index_in_query, name, display_value) values('dynamic.informationtool.get_parcel', 2, 'ba_units', 'Properties::::ITALIANO');
 insert into system.query_field(query_name, index_in_query, name, display_value) values('dynamic.informationtool.get_parcel', 3, 'area_official_sqm', 'Official area (m2)::::ITALIANO');
 insert into system.query_field(query_name, index_in_query, name) values('dynamic.informationtool.get_parcel', 0, 'id');
-insert into system.query_field(query_name, index_in_query, name) values('dynamic.informationtool.get_parcel', 4, 'the_geom');
+insert into system.query_field(query_name, index_in_query, name) values('dynamic.informationtool.get_parcel', 5, 'the_geom');
 insert into system.query_field(query_name, index_in_query, name) values('dynamic.informationtool.get_parcel_pending', 0, 'id');
 insert into system.query_field(query_name, index_in_query, name, display_value) values('dynamic.informationtool.get_parcel_pending', 1, 'parcel_nr', 'Parcel number::::ITALIANO');
 insert into system.query_field(query_name, index_in_query, name, display_value) values('dynamic.informationtool.get_parcel_pending', 2, 'area_official_sqm', 'Official area (m2)::::ITALIANO');
@@ -4946,6 +4959,7 @@ insert into system.query_field(query_name, index_in_query, name) values('dynamic
 insert into system.query_field(query_name, index_in_query, name) values('dynamic.informationtool.get_allodial', 0, 'id');
 insert into system.query_field(query_name, index_in_query, name, display_value) values('dynamic.informationtool.get_allodial', 1, 'nr', 'Number');
 insert into system.query_field(query_name, index_in_query, name) values('dynamic.informationtool.get_allodial', 2, 'the_geom');
+insert into system.query_field(query_name, index_in_query, name, display_value) values('dynamic.informationtool.get_parcel', 4, 'area_official_sqf', 'Official area (square feet)');
 
 
 
@@ -5572,6 +5586,21 @@ CREATE TABLE party.country(
 
 comment on table party.country is 'Ghana extension: List of countries that are used in the system.';
     
+--Table source.power_of_attorney ----
+DROP TABLE IF EXISTS source.power_of_attorney CASCADE;
+CREATE TABLE source.power_of_attorney(
+    id varchar(40) NOT NULL,
+    person_name varchar(500) NOT NULL,
+    attorney_name varchar(500) NOT NULL,
+
+    -- Internal constraints
+    
+    CONSTRAINT power_of_attorney_pkey PRIMARY KEY (id)
+);
+
+
+comment on table source.power_of_attorney is '';
+    
 
 ALTER TABLE source.spatial_source ADD CONSTRAINT spatial_source_type_code_fk0 
             FOREIGN KEY (type_code) REFERENCES source.spatial_source_type(code) ON UPDATE CASCADE ON DELETE RESTRICT;
@@ -6152,6 +6181,10 @@ CREATE INDEX deed_land_use_code_fk143_ind ON source.deed (land_use_code);
 ALTER TABLE party.party ADD CONSTRAINT party_nationality_code_fk144 
             FOREIGN KEY (nationality_code) REFERENCES party.country(code) ON UPDATE CASCADE ON DELETE RESTRICT;
 CREATE INDEX party_nationality_code_fk144_ind ON party.party (nationality_code);
+
+ALTER TABLE source.power_of_attorney ADD CONSTRAINT power_of_attorney_id_fk145 
+            FOREIGN KEY (id) REFERENCES source.source(id) ON UPDATE CASCADE ON DELETE CASCADE;
+CREATE INDEX power_of_attorney_id_fk145_ind ON source.power_of_attorney (id);
 --Generate triggers for tables --
 -- triggers for table source.source -- 
 
