@@ -251,6 +251,48 @@ COMMENT ON FUNCTION public.get_translation(
   , language_code varchar
 ) IS 'This function is used to translate the values that are supposed to be multilingual like the reference data values (display_value)';
     
+-- Function public.clean_db_foreign_constraints --
+CREATE OR REPLACE FUNCTION public.clean_db_foreign_constraints(
+
+) RETURNS void 
+AS $$
+declare
+  rec record;
+begin
+  for rec in select * from information_schema.table_constraints where constraint_type = 'FOREIGN KEY' loop
+    execute 'ALTER TABLE "' || rec.table_schema || '"."' ||  rec.table_name || '" DROP CONSTRAINT "' || rec.constraint_name || '"'; 
+    execute 'DROP INDEX IF EXISTS ' || rec.constraint_name || '_ind';
+  end loop;
+end;
+$$ LANGUAGE plpgsql;
+COMMENT ON FUNCTION public.clean_db_foreign_constraints(
+
+) IS 'This function can be used to drop all foreign key constraints from the database.';
+    
+-- Function public.clean_db_triggers --
+CREATE OR REPLACE FUNCTION public.clean_db_triggers(
+
+) RETURNS void 
+AS $$
+declare
+  rec record;
+begin
+  for rec in SELECT distinct event_object_schema, event_object_table, trigger_name FROM information_schema.triggers 
+    where trigger_name not in ('__track_changes', '__track_history') loop
+    execute 'DROP TRIGGER "' || rec.trigger_name || '" ON "' || rec.event_object_schema || '"."' ||  rec.event_object_table || '" CASCADE;'; 
+  end loop;
+  for rec in select '"' || routine_schema || '"."' || routine_name || '"'  as full_name 
+        from information_schema.routines  where routine_schema='public' 
+            and data_type = 'trigger' and routine_name not in ('postgis_cache_bbox', 'checkauthtrigger', 'f_for_trg_track_history', 'f_for_trg_track_changes' )
+  loop
+      execute 'DROP FUNCTION IF EXISTS '  || rec.full_name || '() CASCADE;';
+  end loop;
+end;
+$$ LANGUAGE plpgsql;
+COMMENT ON FUNCTION public.clean_db_triggers(
+
+) IS 'This function removes all triggers and their related functions in the database. It assumes that the trigger functions are found in the public schema.';
+    
 -- Function party.is_rightholder --
 CREATE OR REPLACE FUNCTION party.is_rightholder(
  id varchar
@@ -5574,6 +5616,12 @@ CREATE TABLE party.country(
 
 comment on table party.country is 'Ghana extension: List of countries that are used in the system.';
     
+ -- Data for the table party.country -- 
+insert into party.country(code, display_value, status) values('GH', 'Ghana', 'c');
+insert into party.country(code, display_value, status) values('NG', 'Nigeria', 'c');
+
+
+
 --Table source.power_of_attorney ----
 DROP TABLE IF EXISTS source.power_of_attorney CASCADE;
 CREATE TABLE source.power_of_attorney(
@@ -6063,7 +6111,7 @@ ALTER TABLE party.party ADD CONSTRAINT party_postal_address_id_fk117
 CREATE INDEX party_postal_address_id_fk117_ind ON party.party (postal_address_id);
 
 ALTER TABLE party.party_id ADD CONSTRAINT party_id_party_id_fk118 
-            FOREIGN KEY (party_id) REFERENCES party.party(id) ON UPDATE CASCADE ON DELETE RESTRICT;
+            FOREIGN KEY (party_id) REFERENCES party.party(id) ON UPDATE CASCADE ON DELETE Cascade;
 CREATE INDEX party_id_party_id_fk118_ind ON party.party_id (party_id);
 
 ALTER TABLE party.party_id ADD CONSTRAINT party_id_type_code_fk119 
@@ -6079,7 +6127,7 @@ ALTER TABLE application.application_action ADD CONSTRAINT application_action_typ
 CREATE INDEX application_action_type_code_fk121_ind ON application.application_action (type_code);
 
 ALTER TABLE application.application_status ADD CONSTRAINT application_status_application_id_fk122 
-            FOREIGN KEY (application_id) REFERENCES application.application(id) ON UPDATE CASCADE ON DELETE RESTRICT;
+            FOREIGN KEY (application_id) REFERENCES application.application(id) ON UPDATE CASCADE ON DELETE Cascade;
 CREATE INDEX application_status_application_id_fk122_ind ON application.application_status (application_id);
 
 ALTER TABLE application.application_status ADD CONSTRAINT application_status_type_code_fk123 
@@ -6087,11 +6135,11 @@ ALTER TABLE application.application_status ADD CONSTRAINT application_status_typ
 CREATE INDEX application_status_type_code_fk123_ind ON application.application_status (type_code);
 
 ALTER TABLE application.application_action ADD CONSTRAINT application_action_status_id_fk124 
-            FOREIGN KEY (status_id) REFERENCES application.application_status(id) ON UPDATE CASCADE ON DELETE RESTRICT;
+            FOREIGN KEY (status_id) REFERENCES application.application_status(id) ON UPDATE CASCADE ON DELETE Cascade;
 CREATE INDEX application_action_status_id_fk124_ind ON application.application_action (status_id);
 
 ALTER TABLE application.action_data ADD CONSTRAINT action_data_action_id_fk125 
-            FOREIGN KEY (action_id) REFERENCES application.application_action(id) ON UPDATE CASCADE ON DELETE RESTRICT;
+            FOREIGN KEY (action_id) REFERENCES application.application_action(id) ON UPDATE CASCADE ON DELETE Cascade;
 CREATE INDEX action_data_action_id_fk125_ind ON application.action_data (action_id);
 
 ALTER TABLE application.action_data ADD CONSTRAINT action_data_type_code_fk126 
