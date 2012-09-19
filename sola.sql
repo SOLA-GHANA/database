@@ -5004,6 +5004,11 @@ CREATE TABLE application.application_party(
     application_id varchar(40) NOT NULL,
     party_id varchar(40) NOT NULL,
     role_code varchar(20) NOT NULL,
+    rowidentifier varchar(40) NOT NULL DEFAULT (uuid_generate_v1()),
+    rowversion integer NOT NULL DEFAULT (0),
+    change_action char(1) NOT NULL DEFAULT ('i'),
+    change_user varchar(50),
+    change_time timestamp NOT NULL DEFAULT (now()),
 
     -- Internal constraints
     
@@ -5012,8 +5017,45 @@ CREATE TABLE application.application_party(
 );
 
 
+
+-- Index application_party_index_on_rowidentifier  --
+CREATE INDEX application_party_index_on_rowidentifier ON application.application_party (rowidentifier);
+    
+
 comment on table application.application_party is 'Ghana extension: For each application can be a number of parties that can have different roles.
 In generic model, there were two parties referenced directly agent_id and contact_person_id. These two parties can be defined through this table so they are removed from the application.';
+    
+DROP TRIGGER IF EXISTS __track_changes ON application.application_party CASCADE;
+CREATE TRIGGER __track_changes BEFORE UPDATE OR INSERT
+   ON application.application_party FOR EACH ROW
+   EXECUTE PROCEDURE f_for_trg_track_changes();
+    
+
+----Table application.application_party_historic used for the history of data of table application.application_party ---
+DROP TABLE IF EXISTS application.application_party_historic CASCADE;
+CREATE TABLE application.application_party_historic
+(
+    id varchar(40),
+    application_id varchar(40),
+    party_id varchar(40),
+    role_code varchar(20),
+    rowidentifier varchar(40),
+    rowversion integer,
+    change_action char(1),
+    change_user varchar(50),
+    change_time timestamp,
+    change_time_valid_until TIMESTAMP NOT NULL default NOW()
+);
+
+
+-- Index application_party_historic_index_on_rowidentifier  --
+CREATE INDEX application_party_historic_index_on_rowidentifier ON application.application_party_historic (rowidentifier);
+    
+
+DROP TRIGGER IF EXISTS __track_history ON application.application_party CASCADE;
+CREATE TRIGGER __track_history AFTER UPDATE OR DELETE
+   ON application.application_party FOR EACH ROW
+   EXECUTE PROCEDURE f_for_trg_track_history();
     
 --Table application.fee_type ----
 DROP TABLE IF EXISTS application.fee_type CASCADE;
