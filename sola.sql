@@ -5196,6 +5196,11 @@ CREATE TABLE application.action_data_field_type(
 
 comment on table application.action_data_field_type is 'The list of data elements that can be captured for a certain action type.';
     
+ -- Data for the table application.action_data_field_type -- 
+insert into application.action_data_field_type(code, display_value, action_type_code, type_code, is_mandatory, status) values('test', 'Test value', 'regno-vetchecklist', 'string', true, 'c');
+
+
+
 --Table application.application_action ----
 DROP TABLE IF EXISTS application.application_action CASCADE;
 CREATE TABLE application.application_action(
@@ -5391,6 +5396,11 @@ CREATE TABLE application.data_type(
 
 comment on table application.data_type is 'The list of data types that data elements invovled in actions can take.';
     
+ -- Data for the table application.data_type -- 
+insert into application.data_type(code, display_value, status) values('string', 'String', 'c');
+
+
+
 --Table application.application_spatial_unit ----
 DROP TABLE IF EXISTS application.application_spatial_unit CASCADE;
 CREATE TABLE application.application_spatial_unit(
@@ -6262,6 +6272,26 @@ CREATE TRIGGER trg_change_from_pending before update
    ON administrative.rrr FOR EACH ROW
    EXECUTE PROCEDURE administrative.f_for_tbl_rrr_trg_change_from_pending();
     
+-- triggers for table application.application -- 
+
+ 
+
+CREATE OR REPLACE FUNCTION application.f_for_tbl_application_trg_after_new() RETURNS TRIGGER 
+AS $$
+begin
+  -- For the new application insert a starting record in the application_status
+  insert into application.application_status(id, application_id, type_code)
+  select uuid_generate_v1(), new.id, starting_status_code 
+  from application.request_type rt 
+  where code = new.request_code;
+  return new;
+end;
+$$ LANGUAGE plpgsql;
+DROP TRIGGER IF EXISTS trg_after_new ON application.application CASCADE;
+CREATE TRIGGER trg_after_new after insert
+   ON application.application FOR EACH ROW
+   EXECUTE PROCEDURE application.f_for_tbl_application_trg_after_new();
+    
 -- triggers for table cadastre.cadastre_object -- 
 
  
@@ -6359,6 +6389,45 @@ DROP TRIGGER IF EXISTS trg_after_change ON application.application_fee CASCADE;
 CREATE TRIGGER trg_after_change after insert or update
    ON application.application_fee FOR EACH ROW
    EXECUTE PROCEDURE application.f_for_tbl_application_fee_trg_after_change();
+    
+-- triggers for table application.application_action -- 
+
+ 
+
+CREATE OR REPLACE FUNCTION application.f_for_tbl_application_action_trg_after_new() RETURNS TRIGGER 
+AS $$
+begin
+  insert into application.action_data(id, action_id, type_code)
+  select uuid_generate_v1(), new.id, code
+  from application.action_data_field_type
+  where action_type_code = new.type_code;
+  return new;
+end;
+$$ LANGUAGE plpgsql;
+DROP TRIGGER IF EXISTS trg_after_new ON application.application_action CASCADE;
+CREATE TRIGGER trg_after_new after insert
+   ON application.application_action FOR EACH ROW
+   EXECUTE PROCEDURE application.f_for_tbl_application_action_trg_after_new();
+    
+-- triggers for table application.application_status -- 
+
+ 
+
+CREATE OR REPLACE FUNCTION application.f_for_tbl_application_status_trg_after_new() RETURNS TRIGGER 
+AS $$
+begin
+  -- After the status has been added, add the whole list of actions related to that status
+  insert into application.application_action(id, status_id, type_code)
+  select uuid_generate_v1(), new.id, code
+  from application.application_action_type 
+  where start_status_type_code= new.type_code;
+  return new;
+end;
+$$ LANGUAGE plpgsql;
+DROP TRIGGER IF EXISTS trg_after_new ON application.application_status CASCADE;
+CREATE TRIGGER trg_after_new after insert
+   ON application.application_status FOR EACH ROW
+   EXECUTE PROCEDURE application.f_for_tbl_application_status_trg_after_new();
     
 
 --Extra modifications added to the script that cannot be generated --
