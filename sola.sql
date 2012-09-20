@@ -3249,6 +3249,8 @@ insert into application.application_action_type(code, start_status_type_code, di
 insert into application.application_action_type(code, start_status_type_code, display_value) values('plangen-vetchecklist', 'smdplanapp-submit', 'Vet against checklist');
 insert into application.application_action_type(code, start_status_type_code, display_value) values('plangen-receivepay', 'smdplanapp-submit', 'Receive payment');
 insert into application.application_action_type(code, start_status_type_code, display_value, next_status_type_code) values('plangen-movenext', 'smdplanapp-submit', 'Move application to Registry', 'smdplanapp-registry');
+insert into application.application_action_type(code, start_status_type_code, display_value, next_status_type_code) values('regno-set-archive', 'smdregnr-submit', 'Go to archiving', 'smdregnr-archive');
+insert into application.application_action_type(code, start_status_type_code, display_value) values('regno-archive-final', 'smdregnr-archive', 'Archive');
 
 
 
@@ -3464,11 +3466,12 @@ CREATE TABLE application.application_status_type(
 comment on table application.application_status_type is 'The list of potential statuses an application can get.';
     
  -- Data for the table application.application_status_type -- 
-insert into application.application_status_type(code, display_value, is_terminal, status) values('smdregnr-submit', 'Submit', true, 'c');
+insert into application.application_status_type(code, display_value, is_terminal, status) values('smdregnr-submit', 'Submit', false, 'c');
 insert into application.application_status_type(code, display_value, status) values('smdplanapp-submit', 'Submit', 'c');
 insert into application.application_status_type(code, display_value, status) values('smdplanapp-registry', 'Registry (Regional Office)', 'c');
 insert into application.application_status_type(code, display_value, status) values('smdcadchange-submit', 'Submit', 'c');
 insert into application.application_status_type(code, display_value, status) values('smdcadredef-submit', 'Submit', 'c');
+insert into application.application_status_type(code, display_value, is_terminal, status) values('smdregnr-archive', 'Archive', true, 'c');
 
 
 
@@ -3785,8 +3788,7 @@ CREATE TABLE system.br_validation(
     id varchar(40) NOT NULL DEFAULT (uuid_generate_v1()),
     br_id varchar(100) NOT NULL,
     target_code varchar(20) NOT NULL,
-    target_application_moment varchar(20),
-    target_service_moment varchar(20),
+    target_action_type_code varchar(20),
     target_reg_moment varchar(20),
     target_request_type_code varchar(20),
     target_rrr_type_code varchar(20),
@@ -3795,14 +3797,8 @@ CREATE TABLE system.br_validation(
 
     -- Internal constraints
     
-    CONSTRAINT br_validation_service_request_type_valid CHECK (target_request_type_code is null or (target_request_type_code is not null and target_code != 'application')),
-    CONSTRAINT br_validation_rrr_rrr_type_valid CHECK (target_rrr_type_code is null or (target_rrr_type_code is not null and target_code = 'rrr')),
-    CONSTRAINT br_validation_app_moment_unique UNIQUE (br_id, target_code, target_application_moment),
-    CONSTRAINT br_validation_service_moment_unique UNIQUE (br_id, target_code, target_service_moment),
+    CONSTRAINT br_validation_action_moment_unique UNIQUE (br_id, target_code, target_action_type_code),
     CONSTRAINT br_validation_reg_moment_unique UNIQUE (br_id, target_code, target_reg_moment),
-    CONSTRAINT br_validation_service_moment_valid CHECK (target_code!= 'service' or (target_code = 'service' and target_application_moment is null and target_reg_moment is null)),
-    CONSTRAINT br_validation_application_moment_valid CHECK (target_code!= 'application' or (target_code = 'application' and target_service_moment is null and target_reg_moment is null)),
-    CONSTRAINT br_validation_reg_moment_valid CHECK (target_code in ( 'application', 'service') or (target_code not in ( 'application', 'service') and target_service_moment is null and target_application_moment is null)),
     CONSTRAINT br_validation_pkey PRIMARY KEY (id)
 );
 
@@ -3868,8 +3864,8 @@ CREATE TABLE system.br_validation_target_type(
 comment on table system.br_validation_target_type is 'The potential targets of the validation rules.';
     
  -- Data for the table system.br_validation_target_type -- 
-insert into system.br_validation_target_type(code, display_value, status, description) values('application', 'Application::::ITALIANO', 'c', 'The target of the validation is the application. It accepts one parameter {id} which is the application id.');
-insert into system.br_validation_target_type(code, display_value, status, description) values('service', 'Service::::ITALIANO', 'c', 'The target of the validation is the service. It accepts one parameter {id} which is the service id.');
+insert into system.br_validation_target_type(code, display_value, status, description) values('application-action', 'Application action::::ITALIANO', 'c', 'The target of the validation is the application action. It accepts one parameter {id} which is the application action id.');
+insert into system.br_validation_target_type(code, display_value, status, description) values('service', 'Service::::ITALIANO', 'x', 'The target of the validation is the service. It accepts one parameter {id} which is the service id.');
 insert into system.br_validation_target_type(code, display_value, status, description) values('rrr', 'Right or Restriction::::ITALIANO', 'c', 'The target of the validation is the rrr. It accepts one parameter {id} which is the rrr id. ');
 insert into system.br_validation_target_type(code, display_value, status, description) values('ba_unit', 'Administrative Unit::::ITALIANO', 'c', 'The target of the validation is the ba_unit. It accepts one parameter {id} which is the ba_unit id.');
 insert into system.br_validation_target_type(code, display_value, status, description) values('source', 'Source::::ITALIANO', 'c', 'The target of the validation is the source. It accepts one parameter {id} which is the source id.');
@@ -6090,9 +6086,9 @@ ALTER TABLE application.application_action_type ADD CONSTRAINT application_actio
             FOREIGN KEY (next_status_type_code) REFERENCES application.application_status_type(code) ON UPDATE CASCADE ON DELETE RESTRICT;
 CREATE INDEX application_action_type_next_status_type_code_fk99_ind ON application.application_action_type (next_status_type_code);
 
-ALTER TABLE system.br_validation ADD CONSTRAINT br_validation_target_application_moment_fk100 
-            FOREIGN KEY (target_application_moment) REFERENCES application.application_action_type(code) ON UPDATE CASCADE ON DELETE RESTRICT;
-CREATE INDEX br_validation_target_application_moment_fk100_ind ON system.br_validation (target_application_moment);
+ALTER TABLE system.br_validation ADD CONSTRAINT br_validation_target_action_type_code_fk100 
+            FOREIGN KEY (target_action_type_code) REFERENCES application.application_action_type(code) ON UPDATE CASCADE ON DELETE RESTRICT;
+CREATE INDEX br_validation_target_action_type_code_fk100_ind ON system.br_validation (target_action_type_code);
 
 ALTER TABLE system.br_validation ADD CONSTRAINT br_validation_target_reg_moment_fk101 
             FOREIGN KEY (target_reg_moment) REFERENCES transaction.reg_status_type(code) ON UPDATE CASCADE ON DELETE RESTRICT;
