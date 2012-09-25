@@ -7,6 +7,8 @@ select region as region_id, distric_nr as num, 'District ' || distric_nr as loca
 0 as year_declared, st_geometryn(the_geom,1) as the_geom 
 from staging_area.d03;
 
+
+
 --View that gives the sections
 drop view if exists staging_area.section_source;
 create or replace view staging_area.section_source as 
@@ -28,6 +30,7 @@ st_transform(st_geometryn(l.geom,1), 32630) as geom_polygon,
 from staging_area.shape_lot l, staging_area.shape_block b, staging_area.district_source d
 where l.lotno != '9999' and l.geom && b.geom and st_intersects(st_centroid(l.geom), b.geom) and st_intersects(st_centroid(l.geom), d.the_geom) ;
 
+
 -- Create a view that is used to retrieve duplications
 drop view if exists staging_area.parcel_duplications;
 create view staging_area.parcel_duplications as 
@@ -42,8 +45,10 @@ delete from cadastre.block;
 delete from cadastre.section;
 delete from cadastre.district;
 delete from cadastre.region;
+
 --Empty the table where the data about parcels are stored
 delete from cadastre.spatial_unit;
+
 --Empty the transaction table
 delete from transaction.transaction;
 
@@ -64,10 +69,10 @@ where the_geom is not null and st_isvalid(the_geom);
 insert into cadastre.district(id, region_id, num, year_declared, the_geom)
 select 
 region_id || '/' || num as id, 
-region_id, 
-num, 
-year_declared, 
-st_transform(the_geom,32630) as the_geom
+region_id,
+num,year_declared, 
+st_transform(the_geom,32630) 
+as the_geom
 from staging_area.district_source
 where the_geom is not null and st_isvalid(the_geom);
 
@@ -96,4 +101,4 @@ where id not in (select id
 insert into cadastre.spatial_value_area(spatial_unit_id, type_code, size) 
 select id, 'officialArea', st_area(geom_polygon) from cadastre.cadastre_object;
 insert into cadastre.spatial_value_area(spatial_unit_id, type_code, size) 
-select id, 'calculatedArea', st_area(geom_polygon) from cadastre.cadastre_object;
+select id, 'calculatedArea', st_area(geom_polygon) from cadastre.cadastre_object; 
