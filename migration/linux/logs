@@ -1,0 +1,84 @@
+Mon Sep 24 16:43:58 GMT 2012
+S019
+./convertsingle.sh: line 11: -v: command not found
+ERROR 6: Can't create fields of type IntegerList on shapefile layers.
+ERROR 6: Can't create fields of type IntegerList on shapefile layers.
+Warning 6: Normalized/laundered field name: 'COV_BLOCK-ID' to 'COV_BLOCK-'
+ERROR 6: Can't create fields of type IntegerList on shapefile layers.
+Warning 6: Normalized/laundered field name: 'COV_BLOCK-ID' to 'COV_BLOCK-'
+ERROR 6: Can't create fields of type IntegerList on shapefile layers.
+Warning 6: Normalized/laundered field name: 'COV_BLOCK-ID' to 'COV_BLOCK-'
+Shapefile type: Polygon
+Postgis type: MULTIPOLYGON[2]
+Shapefile type: Polygon
+Postgis type: MULTIPOLYGON[2]
+Mon Sep 24 16:43:58 GMT 2012
+S020
+./convertsingle.sh: line 11: -v: command not found
+ERROR 6: Can't create fields of type IntegerList on shapefile layers.
+ERROR 6: Can't create fields of type IntegerList on shapefile layers.
+Warning 6: Normalized/laundered field name: 'COV_BLOCK-ID' to 'COV_BLOCK-'
+ERROR 6: Can't create fields of type IntegerList on shapefile layers.
+Warning 6: Normalized/laundered field name: 'COV_BLOCK-ID' to 'COV_BLOCK-'
+ERROR 6: Can't create fields of type IntegerList on shapefile layers.
+Warning 6: Normalized/laundered field name: 'COV_BLOCK-ID' to 'COV_BLOCK-'
+Shapefile type: Polygon
+Postgis type: MULTIPOLYGON[2]
+Shapefile type: Polygon
+Postgis type: MULTIPOLYGON[2]
+Mon Sep 24 16:43:58 GMT 2012
+S022
+./convertsingle.sh: line 11: -v: command not found
+ERROR 6: Can't create fields of type IntegerList on shapefile layers.
+ERROR 6: Can't create fields of type IntegerList on shapefile layers.
+Warning 6: Normalized/laundered field name: 'COV_BLOCK-ID' to 'COV_BLOCK-'
+ERROR 6: Can't create fields of type IntegerList on shapefile layers.
+Warning 6: Normalized/laundered field name: 'COV_BLOCK-ID' to 'COV_BLOCK-'
+ERROR 6: Can't create fields of type IntegerList on shapefile layers.
+Warning 6: Normalized/laundered field name: 'COV_BLOCK-ID' to 'COV_BLOCK-'
+Shapefile type: Polygon
+Postgis type: MULTIPOLYGON[2]
+Shapefile type: Polygon
+Postgis type: MULTIPOLYGON[2]
+Mon Sep 24 16:43:59 GMT 2012
+S023
+./convertsingle.sh: line 11: -v: command not found
+ERROR 6: Can't create fields of type IntegerList on shapefile layers.
+ERROR 6: Can't create fields of type IntegerList on shapefile layers.
+Warning 6: Normalized/laundered field name: 'COV_BLOCK-ID' to 'COV_BLOCK-'
+ERROR 6: Can't create fields of type IntegerList on shapefile layers.
+Warning 6: Normalized/laundered field name: 'COV_BLOCK-ID' to 'COV_BLOCK-'
+ERROR 6: Can't create fields of type IntegerList on shapefile layers.
+Warning 6: Normalized/laundered field name: 'COV_BLOCK-ID' to 'COV_BLOCK-'
+Shapefile type: Polygon
+Postgis type: MULTIPOLYGON[2]
+Shapefile type: Polygon
+Postgis type: MULTIPOLYGON[2]
+Mon Sep 24 16:43:59 GMT 2012
+S024
+./convertsingle.sh: line 11: -v: command not found
+ERROR 6: Can't create fields of type IntegerList on shapefile layers.
+ERROR 6: Can't create fields of type IntegerList on shapefile layers.
+Warning 6: Normalized/laundered field name: 'COV_BLOCK-ID' to 'COV_BLOCK-'
+ERROR 6: Can't create fields of type IntegerList on shapefile layers.
+Warning 6: Normalized/laundered field name: 'COV_BLOCK-ID' to 'COV_BLOCK-'
+ERROR 6: Can't create fields of type IntegerList on shapefile layers.
+Warning 6: Normalized/laundered field name: 'COV_BLOCK-ID' to 'COV_BLOCK-'
+Shapefile type: Polygon
+Postgis type: MULTIPOLYGON[2]
+Shapefile type: Polygon
+Postgis type: MULTIPOLYGON[2]
+Mon Sep 24 16:43:59 GMT 2012
+S025
+./convertsingle.sh: line 11: -v: command not found
+ERROR 6: Can't create fields of type IntegerList on shapefile layers.
+ERROR 6: Can't create fields of type IntegerList on shapefile layers.
+Warning 6: Normalized/laundered field name: 'COV_BLOCK-ID' to 'COV_BLOCK-'
+ERROR 6: Can't create fields of type IntegerList on shapefile layers.
+Warning 6: Normalized/laundered field name: 'COV_BLOCK-ID' to 'COV_BLOCK-'
+ERROR 6: Can't create fields of type IntegerList on shapefile layers.
+Warning 6: Normalized/laundered field name: 'COV_BLOCK-ID' to 'COV_BLOCK-'
+Shapefile type: Polygon
+Postgis type: MULTIPOLYGON[2]
+Shapefile type: Polygon
+Postgis type: MULTIPOLYGON[2]
