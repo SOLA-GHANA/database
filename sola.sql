@@ -6547,8 +6547,7 @@ where now() between bd.active_from and bd.active_until;
 -------View system.br_report ---------
 DROP VIEW IF EXISTS system.br_report CASCADE;
 CREATE VIEW system.br_report AS SELECT  b.id, b.technical_type_code, b.feedback, b.description,
-CASE WHEN target_code = 'application' THEN bv.target_application_moment
-WHEN target_code = 'service' THEN bv.target_service_moment
+CASE WHEN target_code = 'application-action' THEN bv.target_action_type_code
 ELSE bv.target_reg_moment
 END AS moment_code,
 bd.body, bv.severity_code, bv.target_code, bv.target_request_type_code, 
@@ -6558,6 +6557,20 @@ FROM system.br b
   JOIN system.br_definition bd ON b.id = bd.br_id
 WHERE now() >= bd.active_from AND now() <= bd.active_until
 order by b.id;
+
+-------View application.application_search_result ---------
+DROP VIEW IF EXISTS application.application_search_result CASCADE;
+CREATE VIEW application.application_search_result AS SELECT a.id, a.nr, a.lodging_datetime, a.expected_completion_date, a.assignee_id, a.assigned_datetime, a.total_fee, a.total_amount_paid, 
+a.request_code, (COALESCE(u.first_name, '') || ' ') || COALESCE(u.last_name, '') AS assignee_name, 
+  (SELECT string_agg((COALESCE(p.name, '') || ' ') || COALESCE(p.last_name, ''), ',') AS full_name
+    FROM party.party p
+      JOIN application.application_party a_p ON a_p.party_id = p.id
+    WHERE a_p.application_id = a.id AND a_p.role_code = 'applicant') AS applicants, 
+  ast.display_value AS status_display_value
+FROM application.application a
+  JOIN application.application_status a_s ON a.id = a_s.application_id AND a_s.is_current
+  JOIN application.application_status_type ast ON ast.code = a_s.type_code
+  LEFT JOIN system.appuser u ON a.assignee_id = u.id;
 
 
 -- Scan tables and views for geometry columns                 and populate geometry_columns table
