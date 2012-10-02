@@ -1,0 +1,9 @@
+These are scripts for migration LC shapefiles into sola database
+errors are redirected to the logs file
+
+migratedistrict.sh
+ This:
+   Deletes districts in staging area
+   iterates over shapefiles in source directories and migrates them into the sola staging_area via singledistrict.sh . 
+ 
+Single districts
