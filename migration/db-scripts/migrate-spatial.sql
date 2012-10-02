@@ -5,7 +5,7 @@ drop view if exists staging_area.district_source cascade;
 create or replace view staging_area.district_source as 
 select region as region_id, distric_nr as num, 'District ' || distric_nr as locality, 
 0 as year_declared, st_geometryn(the_geom,1) as the_geom 
-from staging_area.d03;
+from staging_area.district;
 
 
 
