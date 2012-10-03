@@ -906,6 +906,40 @@ inout geom_to_snap geometry
   ,out target_is_changed bool
 ) IS 'It snaps one geometry to the other. If points needs to be added they will be added.';
     
+-- Function cadastre.get_app_regional_number --
+CREATE OR REPLACE FUNCTION cadastre.get_app_regional_number(
+
+) RETURNS varchar 
+AS $$
+declare
+  region_code varchar;
+  latest_number integer;
+  latest_char varchar;
+  latest_year varchar;
+begin
+  region_code = system.get_setting('current-region');
+  latest_char = (select coalesce(app_regnr_counter, 'A000') from cadastre.region where code = region_code);
+  latest_number = substring(latest_char from 2 for 3)::integer;
+  latest_char = substring(latest_char from 1 for 1);
+  latest_year = (select coalesce(app_regnr_counter_year, extract('year' from now())::varchar) from cadastre.region where code = region_code);
+  if latest_year != extract('year' from now())::varchar then
+    latest_year = extract('year' from now())::varchar;
+    latest_number = 1;
+    latest_char = 'A';
+  elsif latest_number = 999 then
+    latest_char = chr(ascii(latest_char) + 1)::varchar;
+    latest_number = 1;
+  else
+    latest_number = latest_number+1;
+  end if;
+  update cadastre.region set app_regnr_counter = latest_char || lpad(latest_number::varchar, 3, '0'), app_regnr_counter_year = latest_year where code = region_code;
+  return 'SG/' || region_code || '/' || latest_char || lpad(latest_number::varchar, 3, '0') || '/' || substring(latest_year from 3);
+end;
+$$ LANGUAGE plpgsql;
+COMMENT ON FUNCTION cadastre.get_app_regional_number(
+
+) IS 'It generates the next regional number for the applications of the surveyors for regional numbers.';
+    
     
 select clean_db('public');
     
@@ -2695,6 +2729,7 @@ CREATE TABLE application.application(
     total_fee numeric(20, 2) NOT NULL DEFAULT (0),
     total_amount_paid numeric(20, 2) NOT NULL DEFAULT (0),
     request_code varchar(20) NOT NULL,
+    regional_number varchar(15),
     rowidentifier varchar(40) NOT NULL DEFAULT (uuid_generate_v1()),
     rowversion integer NOT NULL DEFAULT (0),
     change_action char(1) NOT NULL DEFAULT ('i'),
@@ -2746,6 +2781,7 @@ CREATE TABLE application.application_historic
     total_fee numeric(20, 2),
     total_amount_paid numeric(20, 2),
     request_code varchar(20),
+    regional_number varchar(15),
     rowidentifier varchar(40),
     rowversion integer,
     change_action char(1),
@@ -2787,7 +2823,7 @@ CREATE TABLE application.request_type(
     notation_template varchar(1000),
     rrr_type_code varchar(20),
     type_action_code varchar(20),
-    starting_status_code varchar(20) NOT NULL,
+    starting_status_code varchar(50) NOT NULL,
 
     -- Internal constraints
     
@@ -3008,6 +3044,8 @@ CREATE TABLE system.appuser(
     passwd varchar(100) NOT NULL DEFAULT (uuid_generate_v1()),
     active bool NOT NULL DEFAULT (true),
     description varchar(255),
+    office_id varchar(40),
+    office_head bool NOT NULL DEFAULT (false),
     rowidentifier varchar(40) NOT NULL DEFAULT (uuid_generate_v1()),
     rowversion integer NOT NULL DEFAULT (0),
     change_action char(1) NOT NULL DEFAULT ('i'),
@@ -3045,6 +3083,8 @@ CREATE TABLE system.appuser_historic
     passwd varchar(100),
     active bool,
     description varchar(255),
+    office_id varchar(40),
+    office_head bool,
     rowidentifier varchar(40),
     rowversion integer,
     change_action char(1),
@@ -3065,6 +3105,10 @@ CREATE TRIGGER __track_history AFTER UPDATE OR DELETE
     
  -- Data for the table system.appuser -- 
 insert into system.appuser(id, username, first_name, last_name, passwd, active) values('test-id', 'test', 'Test', 'The BOSS', '9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08', true);
+insert into system.appuser(id, username, first_name, last_name, passwd, active, office_id, office_head) values('scau-head', 'scau', 'SCAU', 'Head', '9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08', true, 'csau-front-desk', true);
+insert into system.appuser(id, username, first_name, last_name, passwd, active, office_id, office_head) values('registry-head', 'registry', 'Registry', 'Head', '9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08', true, 'registry-regional-office', true);
+insert into system.appuser(id, username, first_name, last_name, passwd, active, office_id, office_head) values('gis-section-head', 'gis', 'Gis', 'Head', '9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08', true, 'cartographic-gis-section', true);
+insert into system.appuser(id, username, first_name, last_name, passwd, active, office_id, office_head) values('sealing-head', 'sealing', 'DocSealing', 'Head', '9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08', true, 'doc-sealing-desk', true);
 
 
 
@@ -3228,12 +3272,14 @@ CREATE TRIGGER __track_history AFTER UPDATE OR DELETE
 --Table application.application_action_type ----
 DROP TABLE IF EXISTS application.application_action_type CASCADE;
 CREATE TABLE application.application_action_type(
-    code varchar(20) NOT NULL,
-    start_status_type_code varchar(20) NOT NULL,
+    code varchar(50) NOT NULL,
+    start_status_type_code varchar(50) NOT NULL,
     display_value varchar(250) NOT NULL,
-    next_status_type_code varchar(20),
+    next_status_type_code varchar(50),
     status char(1) NOT NULL DEFAULT ('t'),
     description varchar(555),
+    action_order integer NOT NULL,
+    gui_type varchar(50),
 
     -- Internal constraints
     
@@ -3244,13 +3290,16 @@ CREATE TABLE application.application_action_type(
 comment on table application.application_action_type is 'The list of potential action types belonging to an application status.';
     
  -- Data for the table application.application_action_type -- 
-insert into application.application_action_type(code, start_status_type_code, display_value) values('regno-vetchecklist', 'smdregnr-submit', 'Vet against checklist');
-insert into application.application_action_type(code, start_status_type_code, display_value) values('regno-receivepayment', 'smdregnr-submit', 'Receive payment');
-insert into application.application_action_type(code, start_status_type_code, display_value) values('plangen-vetchecklist', 'smdplanapp-submit', 'Vet against checklist');
-insert into application.application_action_type(code, start_status_type_code, display_value) values('plangen-receivepay', 'smdplanapp-submit', 'Receive payment');
-insert into application.application_action_type(code, start_status_type_code, display_value, next_status_type_code) values('plangen-movenext', 'smdplanapp-submit', 'Move application to Registry', 'smdplanapp-registry');
-insert into application.application_action_type(code, start_status_type_code, display_value, next_status_type_code) values('regno-set-archive', 'smdregnr-submit', 'Go to archiving', 'smdregnr-archive');
-insert into application.application_action_type(code, start_status_type_code, display_value) values('regno-archive-final', 'smdregnr-archive', 'Archive');
+insert into application.application_action_type(code, start_status_type_code, display_value, action_order) values('regno-vetchecklist', 'smdregnr-submit', 'Vet against checklist', 10);
+insert into application.application_action_type(code, start_status_type_code, display_value, action_order) values('regno-receivepayment', 'smdregnr-submit', 'Receive payment', 20);
+insert into application.application_action_type(code, start_status_type_code, display_value, action_order) values('plangen-vetchecklist', 'smdplanapp-submit', 'Vet against checklist', 10);
+insert into application.application_action_type(code, start_status_type_code, display_value, action_order) values('plangen-receivepay', 'smdplanapp-submit', 'Receive payment', 20);
+insert into application.application_action_type(code, start_status_type_code, display_value, next_status_type_code, action_order) values('plangen-movenext', 'smdplanapp-submit', 'Move application to Registry', 'smdplanapp-registry', 30);
+insert into application.application_action_type(code, start_status_type_code, display_value, next_status_type_code, action_order) values('regno-set-archive', 'smdregnr-submit', 'Go to archiving', 'smdregnr-archive', 30);
+insert into application.application_action_type(code, start_status_type_code, display_value, action_order) values('regno-archive-final', 'smdregnr-archive', 'Archive', 10);
+insert into application.application_action_type(code, start_status_type_code, display_value, action_order, gui_type) values('smdcadchange-make-changes', 'smdcadchange-make-changes', 'Change map (split/merge/new)', 10, 'CadastreChangeActionPanel');
+insert into application.application_action_type(code, start_status_type_code, display_value, action_order) values('smdcadchange-vetchecklist', 'smdcadchange-submit', 'Vet against checklist', 10);
+insert into application.application_action_type(code, start_status_type_code, display_value, next_status_type_code, action_order) values('smdcadchange-move-to-change', 'smdcadchange-submit', 'Move to change map', 'smdcadchange-make-changes', 20);
 
 
 
@@ -3451,11 +3500,12 @@ Not Applicable';
 --Table application.application_status_type ----
 DROP TABLE IF EXISTS application.application_status_type CASCADE;
 CREATE TABLE application.application_status_type(
-    code varchar(20) NOT NULL,
+    code varchar(50) NOT NULL,
     display_value varchar(250) NOT NULL,
     is_terminal bool NOT NULL DEFAULT (false),
     status char(1) NOT NULL DEFAULT ('t'),
     description varchar(555),
+    office_id varchar(40) NOT NULL,
 
     -- Internal constraints
     
@@ -3466,12 +3516,14 @@ CREATE TABLE application.application_status_type(
 comment on table application.application_status_type is 'The list of potential statuses an application can get.';
     
  -- Data for the table application.application_status_type -- 
-insert into application.application_status_type(code, display_value, is_terminal, status) values('smdregnr-submit', 'Submit', false, 'c');
-insert into application.application_status_type(code, display_value, status) values('smdplanapp-submit', 'Submit', 'c');
-insert into application.application_status_type(code, display_value, status) values('smdplanapp-registry', 'Registry (Regional Office)', 'c');
-insert into application.application_status_type(code, display_value, status) values('smdcadchange-submit', 'Submit', 'c');
-insert into application.application_status_type(code, display_value, status) values('smdcadredef-submit', 'Submit', 'c');
-insert into application.application_status_type(code, display_value, is_terminal, status) values('smdregnr-archive', 'Archive', true, 'c');
+insert into application.application_status_type(code, display_value, is_terminal, status, office_id) values('smdregnr-submit', 'Submit', false, 'c', 'csau-front-desk');
+insert into application.application_status_type(code, display_value, status, office_id) values('smdplanapp-submit', 'Submit', 'c', 'csau-front-desk');
+insert into application.application_status_type(code, display_value, status, office_id) values('smdplanapp-registry', 'Registry (Regional Office)', 'c', 'registry-regional-office');
+insert into application.application_status_type(code, display_value, status, office_id) values('smdcadchange-submit', 'Submit', 'c', 'csau-front-desk');
+insert into application.application_status_type(code, display_value, status, office_id) values('smdcadredef-submit', 'Submit', 'c', 'csau-front-desk');
+insert into application.application_status_type(code, display_value, is_terminal, status, office_id) values('smdregnr-archive', 'Archive', true, 'c', 'csau-front-desk');
+insert into application.application_status_type(code, display_value, status, office_id) values('smdcadchange-make-changes', 'Make the changes in the map', 'c', 'cartographic-gis-section');
+insert into application.application_status_type(code, display_value, status, office_id) values('smdcadredef-make-changes', 'Make the changes in the map', 'c', 'cartographic-gis-section');
 
 
 
@@ -3569,6 +3621,7 @@ insert into system.setting(name, vl, active, description) values('map-north', '6
 insert into system.setting(name, vl, active, description) values('map-tolerance', '0.01', true, 'The tolerance that is used while snapping geometries to each other. If two points are within this distance are considered being in the same location.');
 insert into system.setting(name, vl, active, description) values('map-shift-tolerance-rural', '20', true, 'The shift tolerance of boundary points used in cadastre change in rural areas.');
 insert into system.setting(name, vl, active, description) values('map-shift-tolerance-urban', '5', true, 'The shift tolerance of boundary points used in cadastre change in urban areas.');
+insert into system.setting(name, vl, active, description) values('current-region', 'GA', true, 'Ghana extension: The current region recognized from the application.');
 
 
 
@@ -3788,7 +3841,7 @@ CREATE TABLE system.br_validation(
     id varchar(40) NOT NULL DEFAULT (uuid_generate_v1()),
     br_id varchar(100) NOT NULL,
     target_code varchar(20) NOT NULL,
-    target_action_type_code varchar(20),
+    target_action_type_code varchar(50),
     target_reg_moment varchar(20),
     target_request_type_code varchar(20),
     target_rrr_type_code varchar(20),
@@ -5219,7 +5272,7 @@ DROP TABLE IF EXISTS application.action_data_field_type CASCADE;
 CREATE TABLE application.action_data_field_type(
     code varchar(20) NOT NULL,
     display_value varchar(250) NOT NULL,
-    action_type_code varchar(20) NOT NULL,
+    action_type_code varchar(50) NOT NULL,
     type_code varchar(20) NOT NULL,
     is_mandatory bool NOT NULL DEFAULT (false),
     status char(1),
@@ -5244,9 +5297,10 @@ DROP TABLE IF EXISTS application.application_action CASCADE;
 CREATE TABLE application.application_action(
     id varchar(40) NOT NULL,
     status_id varchar(40) NOT NULL,
-    type_code varchar(20) NOT NULL,
+    type_code varchar(50) NOT NULL,
     is_done bool NOT NULL DEFAULT (false),
     remarks varchar(500),
+    action_order integer NOT NULL,
     rowidentifier varchar(40) NOT NULL DEFAULT (uuid_generate_v1()),
     rowversion integer NOT NULL DEFAULT (0),
     change_action char(1) NOT NULL DEFAULT ('i'),
@@ -5279,9 +5333,10 @@ CREATE TABLE application.application_action_historic
 (
     id varchar(40),
     status_id varchar(40),
-    type_code varchar(20),
+    type_code varchar(50),
     is_done bool,
     remarks varchar(500),
+    action_order integer,
     rowidentifier varchar(40),
     rowversion integer,
     change_action char(1),
@@ -5305,8 +5360,10 @@ DROP TABLE IF EXISTS application.application_status CASCADE;
 CREATE TABLE application.application_status(
     id varchar(40) NOT NULL,
     application_id varchar(40) NOT NULL,
-    type_code varchar(20) NOT NULL,
+    type_code varchar(50) NOT NULL,
     is_current bool NOT NULL DEFAULT (true),
+    date_enter date NOT NULL DEFAULT (now()),
+    date_leave date,
     rowidentifier varchar(40) NOT NULL DEFAULT (uuid_generate_v1()),
     rowversion integer NOT NULL DEFAULT (0),
     change_action char(1) NOT NULL DEFAULT ('i'),
@@ -5338,8 +5395,10 @@ CREATE TABLE application.application_status_historic
 (
     id varchar(40),
     application_id varchar(40),
-    type_code varchar(20),
+    type_code varchar(50),
     is_current bool,
+    date_enter date,
+    date_leave date,
     rowidentifier varchar(40),
     rowversion integer,
     change_action char(1),
@@ -5526,6 +5585,8 @@ CREATE TABLE cadastre.region(
         CONSTRAINT enforce_srid_the_geom CHECK (st_srid(the_geom) = 32630),
         CONSTRAINT enforce_valid_the_geom CHECK (st_isvalid(the_geom)),
         CONSTRAINT enforce_geotype_the_geom CHECK (geometrytype(the_geom) = 'MULTIPOLYGON'::text OR the_geom IS NULL),
+    app_regnr_counter varchar(5),
+    app_regnr_counter_year varchar(4),
 
     -- Internal constraints
     
@@ -5685,6 +5746,68 @@ CREATE TABLE source.power_of_attorney(
 
 comment on table source.power_of_attorney is '';
     
+--Table system.office ----
+DROP TABLE IF EXISTS system.office CASCADE;
+CREATE TABLE system.office(
+    id varchar(40) NOT NULL,
+    name varchar(100) NOT NULL,
+    rowidentifier varchar(40) NOT NULL DEFAULT (uuid_generate_v1()),
+    rowversion integer NOT NULL DEFAULT (0),
+    change_action char(1) NOT NULL DEFAULT ('i'),
+    change_user varchar(50),
+    change_time timestamp NOT NULL DEFAULT (now()),
+
+    -- Internal constraints
+    
+    CONSTRAINT office_pkey PRIMARY KEY (id)
+);
+
+
+
+-- Index office_index_on_rowidentifier  --
+CREATE INDEX office_index_on_rowidentifier ON system.office (rowidentifier);
+    
+
+comment on table system.office is 'Ghana extension: The office that is involved in the system. Every office can have one or more users. One of those users has to be the head of the office.';
+    
+DROP TRIGGER IF EXISTS __track_changes ON system.office CASCADE;
+CREATE TRIGGER __track_changes BEFORE UPDATE OR INSERT
+   ON system.office FOR EACH ROW
+   EXECUTE PROCEDURE f_for_trg_track_changes();
+    
+
+----Table system.office_historic used for the history of data of table system.office ---
+DROP TABLE IF EXISTS system.office_historic CASCADE;
+CREATE TABLE system.office_historic
+(
+    id varchar(40),
+    name varchar(100),
+    rowidentifier varchar(40),
+    rowversion integer,
+    change_action char(1),
+    change_user varchar(50),
+    change_time timestamp,
+    change_time_valid_until TIMESTAMP NOT NULL default NOW()
+);
+
+
+-- Index office_historic_index_on_rowidentifier  --
+CREATE INDEX office_historic_index_on_rowidentifier ON system.office_historic (rowidentifier);
+    
+
+DROP TRIGGER IF EXISTS __track_history ON system.office CASCADE;
+CREATE TRIGGER __track_history AFTER UPDATE OR DELETE
+   ON system.office FOR EACH ROW
+   EXECUTE PROCEDURE f_for_trg_track_history();
+    
+ -- Data for the table system.office -- 
+insert into system.office(id, name) values('csau-front-desk', 'SCAU Front Desk');
+insert into system.office(id, name) values('registry-regional-office', 'Registry - Regional Office');
+insert into system.office(id, name) values('cartographic-gis-section', 'Cartographic and GIS Section');
+insert into system.office(id, name) values('doc-sealing-desk', 'Document sealing desk');
+
+
+
 
 ALTER TABLE source.spatial_source ADD CONSTRAINT spatial_source_type_code_fk0 
             FOREIGN KEY (type_code) REFERENCES source.spatial_source_type(code) ON UPDATE CASCADE ON DELETE RESTRICT;
@@ -6269,6 +6392,14 @@ CREATE INDEX party_nationality_code_fk144_ind ON party.party (nationality_code);
 ALTER TABLE source.power_of_attorney ADD CONSTRAINT power_of_attorney_id_fk145 
             FOREIGN KEY (id) REFERENCES source.source(id) ON UPDATE CASCADE ON DELETE CASCADE;
 CREATE INDEX power_of_attorney_id_fk145_ind ON source.power_of_attorney (id);
+
+ALTER TABLE system.appuser ADD CONSTRAINT appuser_office_id_fk146 
+            FOREIGN KEY (office_id) REFERENCES system.office(id) ON UPDATE CASCADE ON DELETE RESTRICT;
+CREATE INDEX appuser_office_id_fk146_ind ON system.appuser (office_id);
+
+ALTER TABLE application.application_status_type ADD CONSTRAINT application_status_type_office_id_fk147 
+            FOREIGN KEY (office_id) REFERENCES system.office(id) ON UPDATE CASCADE ON DELETE RESTRICT;
+CREATE INDEX application_status_type_office_id_fk147_ind ON application.application_status_type (office_id);
 --Generate triggers for tables --
 -- triggers for table source.source -- 
 
@@ -6318,8 +6449,8 @@ CREATE OR REPLACE FUNCTION application.f_for_tbl_application_trg_after_new() RET
 AS $$
 begin
   -- For the new application insert a starting record in the application_status
-  insert into application.application_status(id, application_id, type_code)
-  select uuid_generate_v1(), new.id, starting_status_code 
+  insert into application.application_status(id, application_id, type_code, change_user)
+  select uuid_generate_v1(), new.id, starting_status_code, new.change_user
   from application.request_type rt 
   where code = new.request_code;
   return new;
@@ -6435,8 +6566,8 @@ CREATE TRIGGER trg_after_change after insert or update
 CREATE OR REPLACE FUNCTION application.f_for_tbl_application_action_trg_after_new() RETURNS TRIGGER 
 AS $$
 begin
-  insert into application.action_data(id, action_id, type_code)
-  select uuid_generate_v1(), new.id, code
+  insert into application.action_data(id, action_id, type_code, change_user)
+  select uuid_generate_v1(), new.id, code, new.change_user
   from application.action_data_field_type
   where action_type_code = new.type_code;
   return new;
@@ -6451,14 +6582,36 @@ CREATE TRIGGER trg_after_new after insert
 
  
 
+CREATE OR REPLACE FUNCTION application.f_for_tbl_application_status_trg_change() RETURNS TRIGGER 
+AS $$
+begin
+  if not new.is_current and old.is_current then
+    new.date_leave = now();
+  end if;
+  return new;
+end;
+$$ LANGUAGE plpgsql;
+DROP TRIGGER IF EXISTS trg_change ON application.application_status CASCADE;
+CREATE TRIGGER trg_change before update
+   ON application.application_status FOR EACH ROW
+   EXECUTE PROCEDURE application.f_for_tbl_application_status_trg_change();
+    
+
 CREATE OR REPLACE FUNCTION application.f_for_tbl_application_status_trg_after_new() RETURNS TRIGGER 
 AS $$
 begin
   -- After the status has been added, add the whole list of actions related to that status
-  insert into application.application_action(id, status_id, type_code)
-  select uuid_generate_v1(), new.id, code
+  insert into application.application_action(id, status_id, type_code, action_order, change_user)
+  select uuid_generate_v1(), new.id, code, action_order, new.change_user
   from application.application_action_type 
   where start_status_type_code= new.type_code;
+  -- It assigns the application to the head of the office where the application is moved.
+  update application.application set 
+    assignee_id = (select u.id from system.appuser u 
+      inner join application.application_status_type s on u.office_id= s.office_id and u.office_head
+      where s.code = new.type_code),
+    assigned_datetime = now()
+  where id= new.application_id;
   return new;
 end;
 $$ LANGUAGE plpgsql;
