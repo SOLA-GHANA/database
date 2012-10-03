@@ -12,4 +12,7 @@ Single districts
 
 migratemain.sh
   This the upper scripts that calls all the related scripts for migration to staging schema area and subsequent migration to the cadastre schema the source and destination directories for the district and section files together with srid and database parameters are passed as arguemens to run the script.
-  
+ 
+eg 
+./migratemain.sh localhost 5433 sola postgres data/source/districts data/destination/districts data/source/sections data/destination/sections  ../db-scripts/migrate-spatial.sql 
+ 
