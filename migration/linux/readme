@@ -7,3 +7,9 @@ migratedistrict.sh
    iterates over shapefiles in source directories and migrates them into the sola staging_area via singledistrict.sh . 
  
 Single districts
+  This takes a ziped district shapefiles in a 
+
+
+migratemain.sh
+  This the upper scripts that calls all the related scripts for migration to staging schema area and subsequent migration to the cadastre schema the source and destination directories for the district and section files together with srid and database parameters are passed as arguemens to run the script.
+  
