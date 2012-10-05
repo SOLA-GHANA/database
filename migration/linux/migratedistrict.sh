@@ -19,7 +19,7 @@ do
  then 
    echo  `date` >> logs/districtlogs
    echo "${file%.*}" >> logs/districtlogs
-   ./singledistricts.sh  "${file%.*}"   $db_host $db_port $db_name  $db_user  $srid  $src_dir $dest_dir  2>> logs/districtlogs 
+   ./singledistrict.sh  "${file%.*}"   $db_host $db_port $db_name  $db_user  $srid  $src_dir $dest_dir  2>> logs/districtlogs 
  else
 	echo "files in source directory must end with .ZIP"
 	echo error in processing $file > logs/disrictlogs

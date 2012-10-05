@@ -16,7 +16,7 @@ region="GA"
 
 echo "Conveting sections"
 echo "*****************************************************************************"
-    ./convertall.sh  $db_host  $db_port $db_name $db_user $region $srid $section_source $section_destination 2>>logs/mainlogs  
+    ./convertall.sh  $db_host  $db_port $db_name $db_user $region $srid $section_source $section_destination 2>>logs/mainlogs
 echo "Done with sections"
 echo "******************************************************************************"
 
@@ -26,7 +26,7 @@ echo "**************************************************************************
 
 echo "Conveting districts" 
 echo "*****************************************************************************"
-   ./migratedistrict.sh $db_host $db_port $db_name  $db_user $srid  $district_source $district_destination
+   ./migratedistrict.sh $db_host $db_port $db_name  $db_user $srid  $district_source $district_destination 2>>logs/mainlogs
 
 echo "Done with districtsi"
 echo "******************************************************************************"

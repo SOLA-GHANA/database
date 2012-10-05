@@ -19,8 +19,8 @@ for file in $( ls $src_dir )
 do
  if [ "${file##*.}"="ZIP" ]
  then 
-   echo  `date` >> logs/districtlogs
-   echo "${file%.*}" >> logs/districtlogs
+   echo  `date` >> logs/sectionlogs
+   echo "${file%.*}" >> logs/sectionlogs
    ./convertsingle.sh  "${file%.*}"  $db_host $db_port $db_name $db_user $srid $region $src_dir $dest_dir 2>> logs/districtlogs 
  else
 	echo "files in source directory must end with .ZIP"
