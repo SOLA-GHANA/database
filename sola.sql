@@ -3297,9 +3297,10 @@ insert into application.application_action_type(code, start_status_type_code, di
 insert into application.application_action_type(code, start_status_type_code, display_value, next_status_type_code, action_order) values('plangen-movenext', 'smdplanapp-submit', 'Move application to Registry', 'smdplanapp-registry', 30);
 insert into application.application_action_type(code, start_status_type_code, display_value, next_status_type_code, action_order) values('regno-set-archive', 'smdregnr-submit', 'Go to archiving', 'smdregnr-archive', 30);
 insert into application.application_action_type(code, start_status_type_code, display_value, action_order) values('regno-archive-final', 'smdregnr-archive', 'Archive', 10);
-insert into application.application_action_type(code, start_status_type_code, display_value, action_order, gui_type) values('smdcadchange-make-changes', 'smdcadchange-make-changes', 'Change map (split/merge/new)', 10, 'CadastreChangeActionPanel');
+insert into application.application_action_type(code, start_status_type_code, display_value, action_order, gui_type) values('smdcadchange-make-changes', 'smdcadchange-make-changes', 'Change map (split/merge/new)', 10, 'MapRequestActionPanel');
 insert into application.application_action_type(code, start_status_type_code, display_value, action_order) values('smdcadchange-vetchecklist', 'smdcadchange-submit', 'Vet against checklist', 10);
 insert into application.application_action_type(code, start_status_type_code, display_value, next_status_type_code, action_order) values('smdcadchange-move-to-change', 'smdcadchange-submit', 'Move to change map', 'smdcadchange-make-changes', 20);
+insert into application.application_action_type(code, start_status_type_code, display_value, action_order, gui_type) values('regno-generate-regional-no', 'smdregnr-submit', 'Generate regional number', 25, 'RegionalNumberGenerationActionPanel');
 
 
 
@@ -4528,6 +4529,7 @@ CREATE TABLE cadastre.survey_point(
         CONSTRAINT enforce_srid_original_geom CHECK (st_srid(original_geom) = 32630),
         CONSTRAINT enforce_valid_original_geom CHECK (st_isvalid(original_geom)),
         CONSTRAINT enforce_geotype_original_geom CHECK (geometrytype(original_geom) = 'POINT'::text OR original_geom IS NULL),
+    linked bool NOT NULL DEFAULT (false),
     rowidentifier varchar(40) NOT NULL DEFAULT (uuid_generate_v1()),
     rowversion integer NOT NULL DEFAULT (0),
     change_action char(1) NOT NULL DEFAULT ('i'),
@@ -4576,6 +4578,7 @@ CREATE TABLE cadastre.survey_point_historic
         CONSTRAINT enforce_srid_original_geom CHECK (st_srid(original_geom) = 32630),
         CONSTRAINT enforce_valid_original_geom CHECK (st_isvalid(original_geom)),
         CONSTRAINT enforce_geotype_original_geom CHECK (geometrytype(original_geom) = 'POINT'::text OR original_geom IS NULL),
+    linked bool,
     rowidentifier varchar(40),
     rowversion integer,
     change_action char(1),
@@ -5362,8 +5365,8 @@ CREATE TABLE application.application_status(
     application_id varchar(40) NOT NULL,
     type_code varchar(50) NOT NULL,
     is_current bool NOT NULL DEFAULT (true),
-    date_enter date NOT NULL DEFAULT (now()),
-    date_leave date,
+    date_enter timestamp NOT NULL DEFAULT (now()),
+    date_leave timestamp,
     rowidentifier varchar(40) NOT NULL DEFAULT (uuid_generate_v1()),
     rowversion integer NOT NULL DEFAULT (0),
     change_action char(1) NOT NULL DEFAULT ('i'),
@@ -5397,8 +5400,8 @@ CREATE TABLE application.application_status_historic
     application_id varchar(40),
     type_code varchar(50),
     is_current bool,
-    date_enter date,
-    date_leave date,
+    date_enter timestamp,
+    date_leave timestamp,
     rowidentifier varchar(40),
     rowversion integer,
     change_action char(1),
