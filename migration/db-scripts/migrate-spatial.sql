@@ -1,12 +1,10 @@
 ﻿--Create handy views
-
 --View that gives the districts
-drop view if exists staging_area.district_source cascade;
+drop view if exists staging_area.district_source  cascade;
 create or replace view staging_area.district_source as 
 select region as region_id, distric_nr as num, 'District ' || distric_nr as locality, 
 0 as year_declared, st_geometryn(the_geom,1) as the_geom 
 from staging_area.district;
-
 
 
 --View that gives the sections
@@ -55,9 +53,9 @@ delete from transaction.transaction;
 -- Create a new transaction only for the migration
 insert into transaction.transaction(id, status_code, approval_datetime) values('migration-transaction', 'approved', now());
 
--- Insert regions. Regions have hierarchy 1
+																									-- Insert regions. Regions have hierarchy 1
 insert into cadastre.region(id, code, name, the_geom)
-select 
+select distinct
 case when code = 'AA' then 'GA' else code end as id, 
 case when code = 'AA' then 'GA' else code end,
 name, 
@@ -101,4 +99,6 @@ where id not in (select id
 insert into cadastre.spatial_value_area(spatial_unit_id, type_code, size) 
 select id, 'officialArea', st_area(geom_polygon) from cadastre.cadastre_object;
 insert into cadastre.spatial_value_area(spatial_unit_id, type_code, size) 
-select id, 'calculatedArea', st_area(geom_polygon) from cadastre.cadastre_object; 
+select id, 'calculatedArea', st_area(geom_polygon) from cadastre.cadastre_object;
+
+

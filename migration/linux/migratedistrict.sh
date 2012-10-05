@@ -6,7 +6,7 @@ db_user=$4
 srid=$5
 src_dir=$6
 dest_dir=$7
-extra_options=--quiet -v ON_ERROR_STOP=1 
+extra_options=--quiet  ON_ERROR_STOP=1 
 
 #loops through source and destination files and executed singldistricts.sh
 #errors are appeneded to logs file
