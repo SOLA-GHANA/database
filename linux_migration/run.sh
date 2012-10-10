@@ -17,6 +17,9 @@ echo
 echo "Database Connectivity"
 echo "....................."
 
+rm -rf "logs"
+mkdir -p "logs"
+
 #Accepting Database connection parameters.
 read -p "Server IP Address / Host name [localhost]:" DBHOSTNAME
 read -p "Server Port [5432]:" DBPORT

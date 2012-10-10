@@ -13,7 +13,7 @@ delete from transaction.transaction;
 -- Create a new transaction only for the migration
 insert into transaction.transaction(id, status_code, approval_datetime) values('migration-transaction', 'approved', now());
 
-																									-- Insert regions. Regions have hierarchy 1
+-- Insert regions
 insert into cadastre.region(id, code, name, the_geom)
 select distinct
 case when code = 'AA' then 'GA' else code end as id, 
@@ -23,7 +23,7 @@ st_transform(the_geom,32630) as the_geom
 from staging_area.region
 where the_geom is not null and st_isvalid(the_geom);
 
--- Insert districts. Districts have hierarchy 2
+-- Insert districts
 insert into cadastre.district(id, region_id, num, year_declared, the_geom)
 select 
 region_id || '/' || num as id, 

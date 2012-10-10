@@ -13,7 +13,7 @@ To run the script:
    data/source/district
 
 5. Run the script
-   $sh run.sh
+   $./run.sh
 
 
 File Structure Description
