@@ -2970,7 +2970,7 @@ insert into party.party_role_type(code, display_value, used_in_application, stat
 insert into party.party_role_type(code, display_value, status, description) values('powerOfAttorney', 'Power of Attorney::::Procuratore', 'c', 'Extension to LADM');
 insert into party.party_role_type(code, display_value, status, description) values('transferee', 'Transferee (to)::::Avente Causa', 'c', 'Extension to LADM');
 insert into party.party_role_type(code, display_value, status, description) values('transferor', 'Transferor (from)::::Dante Causa', 'c', 'Extension to LADM');
-insert into party.party_role_type(code, display_value, status, description) values('applicant', 'Applicant', 'c', 'Extension to LADM');
+insert into party.party_role_type(code, display_value, used_in_application, status, description) values('applicant', 'Applicant', true, 'c', 'Extension to LADM');
 
 
 
