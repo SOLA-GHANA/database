@@ -3290,17 +3290,21 @@ CREATE TABLE application.application_action_type(
 comment on table application.application_action_type is 'The list of potential action types belonging to an application status.';
     
  -- Data for the table application.application_action_type -- 
-insert into application.application_action_type(code, start_status_type_code, display_value, action_order) values('regno-vetchecklist', 'smdregnr-submit', 'Vet against checklist', 10);
-insert into application.application_action_type(code, start_status_type_code, display_value, action_order) values('regno-receivepayment', 'smdregnr-submit', 'Receive payment', 20);
-insert into application.application_action_type(code, start_status_type_code, display_value, action_order) values('plangen-vetchecklist', 'smdplanapp-submit', 'Vet against checklist', 10);
-insert into application.application_action_type(code, start_status_type_code, display_value, action_order) values('plangen-receivepay', 'smdplanapp-submit', 'Receive payment', 20);
-insert into application.application_action_type(code, start_status_type_code, display_value, next_status_type_code, action_order) values('plangen-movenext', 'smdplanapp-submit', 'Move application to Registry', 'smdplanapp-registry', 30);
-insert into application.application_action_type(code, start_status_type_code, display_value, next_status_type_code, action_order) values('regno-set-archive', 'smdregnr-submit', 'Go to archiving', 'smdregnr-archive', 30);
-insert into application.application_action_type(code, start_status_type_code, display_value, action_order) values('regno-archive-final', 'smdregnr-archive', 'Archive', 10);
-insert into application.application_action_type(code, start_status_type_code, display_value, action_order, gui_type) values('smdcadchange-make-changes', 'smdcadchange-make-changes', 'Change map (split/merge/new)', 10, 'MapRequestActionPanel');
-insert into application.application_action_type(code, start_status_type_code, display_value, action_order) values('smdcadchange-vetchecklist', 'smdcadchange-submit', 'Vet against checklist', 10);
-insert into application.application_action_type(code, start_status_type_code, display_value, next_status_type_code, action_order) values('smdcadchange-move-to-change', 'smdcadchange-submit', 'Move to change map', 'smdcadchange-make-changes', 20);
-insert into application.application_action_type(code, start_status_type_code, display_value, action_order, gui_type) values('regno-generate-regional-no', 'smdregnr-submit', 'Generate regional number', 25, 'RegionalNumberGenerationActionPanel');
+insert into application.application_action_type(code, start_status_type_code, display_value, description, action_order) values('regno-vetchecklist', 'smdregnr-submit', 'Vet against checklist', 'Check if required infromation is collected.', 10);
+insert into application.application_action_type(code, start_status_type_code, display_value, description, action_order) values('regno-receivepayment', 'smdregnr-submit', 'Receive payment', 'Check if the payment is fully made.', 20);
+insert into application.application_action_type(code, start_status_type_code, display_value, description, action_order) values('plangen-vetchecklist', 'smdplanapp-submit', 'Vet against checklist', 'Check if required infromation is collected.', 10);
+insert into application.application_action_type(code, start_status_type_code, display_value, description, action_order) values('plangen-receivepay', 'smdplanapp-submit', 'Receive payment', 'Check if the payment is fully made.', 20);
+insert into application.application_action_type(code, start_status_type_code, display_value, description, action_order, gui_type) values('plangen-generate', 'smdplanapp-submit', 'Generate plan', 'The plan generation starts from this screen.', 30, 'MapRequestActionPanel');
+insert into application.application_action_type(code, start_status_type_code, display_value, next_status_type_code, description, action_order) values('regno-set-completed', 'smdregnr-submit', 'Complete', 'smdregnr-completed', 'The application moves to completed status.', 30);
+insert into application.application_action_type(code, start_status_type_code, display_value, description, action_order, gui_type) values('smdcadchange-make-changes', 'smdcadchange-make-changes', 'Change map (split/merge/new)', 'The cadastre change process starts by clicking in the Make changes button.', 10, 'MapRequestActionPanel');
+insert into application.application_action_type(code, start_status_type_code, display_value, description, action_order) values('smdcadchange-vetchecklist', 'smdcadchange-submit', 'Vet against checklist', 'Check if required infromation is collected.', 10);
+insert into application.application_action_type(code, start_status_type_code, display_value, next_status_type_code, description, action_order) values('smdcadchange-move-to-change', 'smdcadchange-submit', 'Go to Make Changes', 'smdcadchange-make-changes', 'Move to the status where the cadastre change can start.', 20);
+insert into application.application_action_type(code, start_status_type_code, display_value, description, action_order, gui_type) values('regno-generate-regional-no', 'smdregnr-submit', 'Generate regional number', 'Generate regional number by clicking the button below.', 25, 'RegionalNumberGenerationActionPanel');
+insert into application.application_action_type(code, start_status_type_code, display_value, next_status_type_code, description, action_order) values('smdcadchange-set-completed', 'smdcadchange-make-changes', 'Complete', 'smdcadchange-completed', 'The application moves to completed status.', 40);
+insert into application.application_action_type(code, start_status_type_code, display_value, next_status_type_code, description, action_order) values('smdcadchange-set-cancelled', 'smdcadchange-make-changes', 'Cancel', 'smdcadchange-cancelled', 'The application will be cancelled.', 50);
+insert into application.application_action_type(code, start_status_type_code, display_value, description, action_order) values('smdcadchange-receivepayment', 'smdcadchange-submit', 'Receive payment', 'Check if the payment is fully made.', 15);
+insert into application.application_action_type(code, start_status_type_code, display_value, next_status_type_code, description, action_order) values('plangen-set-completed', 'smdplanapp-submit', 'Complete', 'smdplanapp-completed', 'The application moves to completed status.', 50);
+insert into application.application_action_type(code, start_status_type_code, display_value, next_status_type_code, description, action_order) values('plangen-set-cancelled', 'smdplanapp-submit', 'Cancel', 'smdplanapp-cancelled', 'The application will be cancelled.', 60);
 
 
 
@@ -3519,12 +3523,17 @@ comment on table application.application_status_type is 'The list of potential s
  -- Data for the table application.application_status_type -- 
 insert into application.application_status_type(code, display_value, is_terminal, status, office_id) values('smdregnr-submit', 'Submit', false, 'c', 'csau-front-desk');
 insert into application.application_status_type(code, display_value, status, office_id) values('smdplanapp-submit', 'Submit', 'c', 'csau-front-desk');
-insert into application.application_status_type(code, display_value, status, office_id) values('smdplanapp-registry', 'Registry (Regional Office)', 'c', 'registry-regional-office');
 insert into application.application_status_type(code, display_value, status, office_id) values('smdcadchange-submit', 'Submit', 'c', 'csau-front-desk');
 insert into application.application_status_type(code, display_value, status, office_id) values('smdcadredef-submit', 'Submit', 'c', 'csau-front-desk');
-insert into application.application_status_type(code, display_value, is_terminal, status, office_id) values('smdregnr-archive', 'Archive', true, 'c', 'csau-front-desk');
-insert into application.application_status_type(code, display_value, status, office_id) values('smdcadchange-make-changes', 'Make the changes in the map', 'c', 'cartographic-gis-section');
-insert into application.application_status_type(code, display_value, status, office_id) values('smdcadredef-make-changes', 'Make the changes in the map', 'c', 'cartographic-gis-section');
+insert into application.application_status_type(code, display_value, is_terminal, status, office_id) values('smdregnr-completed', 'Completed', true, 'c', 'csau-front-desk');
+insert into application.application_status_type(code, display_value, status, office_id) values('smdcadchange-make-changes', 'Make Changes', 'c', 'cartographic-gis-section');
+insert into application.application_status_type(code, display_value, status, office_id) values('smdcadredef-make-changes', 'Make Changes', 'c', 'cartographic-gis-section');
+insert into application.application_status_type(code, display_value, is_terminal, status, office_id) values('smdcadchange-completed', 'Completed', true, 'c', 'cartographic-gis-section');
+insert into application.application_status_type(code, display_value, is_terminal, status, office_id) values('smdcadredef-completed', 'Completed', true, 'c', 'cartographic-gis-section');
+insert into application.application_status_type(code, display_value, is_terminal, status, office_id) values('smdcadchange-cancelled', 'Cancelled', true, 'c', 'cartographic-gis-section');
+insert into application.application_status_type(code, display_value, is_terminal, status, office_id) values('smdcadredef-cancelled', 'Cancelled', true, 'c', 'cartographic-gis-section');
+insert into application.application_status_type(code, display_value, is_terminal, status, office_id) values('smdplanapp-completed', 'Completed', true, 'c', 'cartographic-gis-section');
+insert into application.application_status_type(code, display_value, is_terminal, status, office_id) values('smdplanapp-cancelled', 'Cancelled', true, 'c', 'cartographic-gis-section');
 
 
 
@@ -6602,6 +6611,8 @@ CREATE TRIGGER trg_change before update
 
 CREATE OR REPLACE FUNCTION application.f_for_tbl_application_status_trg_after_new() RETURNS TRIGGER 
 AS $$
+declare
+  assignee_id_v varchar;
 begin
   -- After the status has been added, add the whole list of actions related to that status
   insert into application.application_action(id, status_id, type_code, action_order, change_user)
@@ -6609,11 +6620,15 @@ begin
   from application.application_action_type 
   where start_status_type_code= new.type_code;
   -- It assigns the application to the head of the office where the application is moved.
-  update application.application set 
-    assignee_id = (select u.id from system.appuser u 
+  if (select count(*) from application.application_status where application_id = new.application_id)>1 then
+    assignee_id_v = (select u.id from system.appuser u 
       inner join application.application_status_type s on u.office_id= s.office_id and u.office_head
-      where s.code = new.type_code),
-    assigned_datetime = now()
+      where s.code = new.type_code);
+  else
+    assignee_id_v = (select u.id from system.appuser u where u.username= new.change_user);
+  end if;
+  update application.application set 
+    assignee_id = assignee_id_v, assigned_datetime = now()
   where id= new.application_id;
   return new;
 end;
