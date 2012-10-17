@@ -3273,21 +3273,24 @@ CREATE TRIGGER __track_history AFTER UPDATE OR DELETE
 DROP TABLE IF EXISTS application.application_action_type CASCADE;
 CREATE TABLE application.application_action_type(
     code varchar(50) NOT NULL,
-    start_status_type_code varchar(50) NOT NULL,
+    start_status_type_code varchar(50),
     display_value varchar(250) NOT NULL,
     next_status_type_code varchar(50),
     status char(1) NOT NULL DEFAULT ('t'),
     description varchar(555),
     action_order integer NOT NULL,
     gui_type varchar(50),
+    operation varchar(20) NOT NULL DEFAULT ('normal'),
 
     -- Internal constraints
     
+    CONSTRAINT application_action_type_operation_valid CHECK (operation in ('normal', 'cancel', 'approve')),
     CONSTRAINT application_action_type_pkey PRIMARY KEY (code)
 );
 
 
-comment on table application.application_action_type is 'The list of potential action types belonging to an application status.';
+comment on table application.application_action_type is 'The list of potential action types. Usually an action belongs to a certain status. 
+There are actions that does not belong to a certain status, but can be taken in any moment in the application.';
     
  -- Data for the table application.application_action_type -- 
 insert into application.application_action_type(code, start_status_type_code, display_value, description, action_order) values('regno-vetchecklist', 'smdregnr-submit', 'Vet against checklist', 'Check if required infromation is collected.', 10);
@@ -3295,16 +3298,22 @@ insert into application.application_action_type(code, start_status_type_code, di
 insert into application.application_action_type(code, start_status_type_code, display_value, description, action_order) values('plangen-vetchecklist', 'smdplanapp-submit', 'Vet against checklist', 'Check if required infromation is collected.', 10);
 insert into application.application_action_type(code, start_status_type_code, display_value, description, action_order) values('plangen-receivepay', 'smdplanapp-submit', 'Receive payment', 'Check if the payment is fully made.', 20);
 insert into application.application_action_type(code, start_status_type_code, display_value, description, action_order, gui_type) values('plangen-generate', 'smdplanapp-submit', 'Generate plan', 'The plan generation starts from this screen.', 30, 'MapRequestActionPanel');
-insert into application.application_action_type(code, start_status_type_code, display_value, next_status_type_code, description, action_order) values('regno-set-completed', 'smdregnr-submit', 'Complete', 'smdregnr-completed', 'The application moves to completed status.', 30);
+insert into application.application_action_type(code, start_status_type_code, display_value, next_status_type_code, description, action_order, operation) values('regno-set-completed', 'smdregnr-submit', 'Complete', 'smdregnr-completed', 'The application moves to completed status.', 30, 'approve');
 insert into application.application_action_type(code, start_status_type_code, display_value, description, action_order, gui_type) values('smdcadchange-make-changes', 'smdcadchange-make-changes', 'Change map (split/merge/new)', 'The cadastre change process starts by clicking in the Make changes button.', 10, 'MapRequestActionPanel');
 insert into application.application_action_type(code, start_status_type_code, display_value, description, action_order) values('smdcadchange-vetchecklist', 'smdcadchange-submit', 'Vet against checklist', 'Check if required infromation is collected.', 10);
 insert into application.application_action_type(code, start_status_type_code, display_value, next_status_type_code, description, action_order) values('smdcadchange-move-to-change', 'smdcadchange-submit', 'Go to Make Changes', 'smdcadchange-make-changes', 'Move to the status where the cadastre change can start.', 20);
 insert into application.application_action_type(code, start_status_type_code, display_value, description, action_order, gui_type) values('regno-generate-regional-no', 'smdregnr-submit', 'Generate regional number', 'Generate regional number by clicking the button below.', 25, 'RegionalNumberGenerationActionPanel');
-insert into application.application_action_type(code, start_status_type_code, display_value, next_status_type_code, description, action_order) values('smdcadchange-set-completed', 'smdcadchange-make-changes', 'Complete', 'smdcadchange-completed', 'The application moves to completed status.', 40);
-insert into application.application_action_type(code, start_status_type_code, display_value, next_status_type_code, description, action_order) values('smdcadchange-set-cancelled', 'smdcadchange-make-changes', 'Cancel', 'smdcadchange-cancelled', 'The application will be cancelled.', 50);
+insert into application.application_action_type(code, start_status_type_code, display_value, next_status_type_code, description, action_order, operation) values('smdcadchange-set-completed', 'smdcadchange-make-changes', 'Complete', 'smdcadchange-completed', 'The application moves to completed status.', 40, 'approve');
+insert into application.application_action_type(code, start_status_type_code, display_value, next_status_type_code, description, action_order, operation) values('smdcadchange-set-cancelled', 'smdcadchange-make-changes', 'Cancel', 'smdcadchange-cancelled', 'The application will be cancelled.', 50, 'cancel');
 insert into application.application_action_type(code, start_status_type_code, display_value, description, action_order) values('smdcadchange-receivepayment', 'smdcadchange-submit', 'Receive payment', 'Check if the payment is fully made.', 15);
-insert into application.application_action_type(code, start_status_type_code, display_value, next_status_type_code, description, action_order) values('plangen-set-completed', 'smdplanapp-submit', 'Complete', 'smdplanapp-completed', 'The application moves to completed status.', 50);
-insert into application.application_action_type(code, start_status_type_code, display_value, next_status_type_code, description, action_order) values('plangen-set-cancelled', 'smdplanapp-submit', 'Cancel', 'smdplanapp-cancelled', 'The application will be cancelled.', 60);
+insert into application.application_action_type(code, start_status_type_code, display_value, next_status_type_code, description, action_order, operation) values('plangen-set-completed', 'smdplanapp-submit', 'Complete', 'smdplanapp-completed', 'The application moves to completed status.', 50, 'approve');
+insert into application.application_action_type(code, start_status_type_code, display_value, next_status_type_code, description, action_order, operation) values('plangen-set-cancelled', 'smdplanapp-submit', 'Cancel', 'smdplanapp-cancelled', 'The application will be cancelled.', 60, 'cancel');
+insert into application.application_action_type(code, display_value, description) values('generic-add-document', 'Add document', 'It adds a document in the list of documents related with application.');
+insert into application.application_action_type(code, display_value, description) values('generic-remove-document', 'Remove document', 'It removes a document from the application.');
+insert into application.application_action_type(code, display_value, description) values('generic-add-spatialunit', 'Add spatial unit', 'It adds new spatial unit to the application.');
+insert into application.application_action_type(code, display_value, description) values('generic-remove-spatialunit', 'Remove spatial unit', 'It removes a spatial unit to the application.');
+insert into application.application_action_type(code, display_value, description) values('generic-add-person', 'Add person', 'It adds a person to the application.');
+insert into application.application_action_type(code, display_value, description) values('generic-remove-person', 'Remove person', 'It removes a person from the application.');
 
 
 
