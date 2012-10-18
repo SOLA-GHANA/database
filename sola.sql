@@ -3308,12 +3308,12 @@ insert into application.application_action_type(code, start_status_type_code, di
 insert into application.application_action_type(code, start_status_type_code, display_value, description, action_order) values('smdcadchange-receivepayment', 'smdcadchange-submit', 'Receive payment', 'Check if the payment is fully made.', 15);
 insert into application.application_action_type(code, start_status_type_code, display_value, next_status_type_code, description, action_order, operation) values('plangen-set-completed', 'smdplanapp-submit', 'Complete', 'smdplanapp-completed', 'The application moves to completed status.', 50, 'approve');
 insert into application.application_action_type(code, start_status_type_code, display_value, next_status_type_code, description, action_order, operation) values('plangen-set-cancelled', 'smdplanapp-submit', 'Cancel', 'smdplanapp-cancelled', 'The application will be cancelled.', 60, 'cancel');
-insert into application.application_action_type(code, display_value, description) values('generic-add-document', 'Add document', 'It adds a document in the list of documents related with application.');
-insert into application.application_action_type(code, display_value, description) values('generic-remove-document', 'Remove document', 'It removes a document from the application.');
-insert into application.application_action_type(code, display_value, description) values('generic-add-spatialunit', 'Add spatial unit', 'It adds new spatial unit to the application.');
-insert into application.application_action_type(code, display_value, description) values('generic-remove-spatialunit', 'Remove spatial unit', 'It removes a spatial unit to the application.');
-insert into application.application_action_type(code, display_value, description) values('generic-add-person', 'Add person', 'It adds a person to the application.');
-insert into application.application_action_type(code, display_value, description) values('generic-remove-person', 'Remove person', 'It removes a person from the application.');
+insert into application.application_action_type(code, display_value, description, action_order) values('generic-add-document', 'Add document', 'It adds a document in the list of documents related with application.', 200);
+insert into application.application_action_type(code, display_value, description, action_order) values('generic-remove-document', 'Remove document', 'It removes a document from the application.', 200);
+insert into application.application_action_type(code, display_value, description, action_order) values('generic-add-spatialunit', 'Add spatial unit', 'It adds new spatial unit to the application.', 200);
+insert into application.application_action_type(code, display_value, description, action_order) values('generic-remove-spatialunit', 'Remove spatial unit', 'It removes a spatial unit to the application.', 200);
+insert into application.application_action_type(code, display_value, description, action_order) values('generic-add-person', 'Add person', 'It adds a person to the application.', 200);
+insert into application.application_action_type(code, display_value, description, action_order) values('generic-remove-person', 'Remove person', 'It removes a person from the application.', 200);
 
 
 
