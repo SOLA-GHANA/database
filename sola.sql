@@ -2839,10 +2839,10 @@ LADM Definition
 Not Applicable';
     
  -- Data for the table application.request_type -- 
-insert into application.request_type(code, request_category_code, display_value, status, nr_days_to_complete, base_fee, area_base_fee, value_base_fee, nr_properties_required, starting_status_code) values('smdPlanApprov', 'registrationServices', 'Plan approval', 'c', 10, 100, 100, 100, 100, 'smdplanapp-submit');
+insert into application.request_type(code, request_category_code, display_value, status, nr_days_to_complete, base_fee, area_base_fee, value_base_fee, nr_properties_required, starting_status_code) values('smdPlanApprov', 'registrationServices', 'Plan certification', 'c', 10, 100, 100, 100, 100, 'smdplanapp-submit');
 insert into application.request_type(code, request_category_code, display_value, status, nr_days_to_complete, base_fee, area_base_fee, value_base_fee, nr_properties_required, starting_status_code) values('smdApplyRegNo', 'registrationServices', 'Regional number', 'c', 10, 100, 100, 100, 100, 'smdregnr-submit');
-insert into application.request_type(code, request_category_code, display_value, status, nr_days_to_complete, base_fee, area_base_fee, value_base_fee, nr_properties_required, starting_status_code) values('cadastreChange', 'registrationServices', 'Cadastre change', 'c', 10, 100, 100, 100, 1, 'smdcadchange-submit');
-insert into application.request_type(code, request_category_code, display_value, status, nr_days_to_complete, base_fee, area_base_fee, value_base_fee, nr_properties_required, starting_status_code) values('redefineCadastre', 'registrationServices', 'Redefine cadastre', 'c', 10, 100, 100, 100, 1, 'smdcadredef-submit');
+insert into application.request_type(code, request_category_code, display_value, status, nr_days_to_complete, base_fee, area_base_fee, value_base_fee, nr_properties_required, starting_status_code) values('cadastreChange', 'registrationServices', 'New parcel', 'c', 10, 100, 100, 100, 1, 'smdcadchange-submit');
+insert into application.request_type(code, request_category_code, display_value, status, nr_days_to_complete, base_fee, area_base_fee, value_base_fee, nr_properties_required, starting_status_code) values('redefineCadastre', 'registrationServices', 'Edit parcel', 'c', 10, 100, 100, 100, 1, 'smdcadredef-submit');
 
 
 
