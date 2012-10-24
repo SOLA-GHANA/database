@@ -565,6 +565,46 @@ COMMENT ON FUNCTION application.getlodgetiming(
   , todate date
 ) IS '';
     
+-- Function application.application_is_in_progress --
+CREATE OR REPLACE FUNCTION application.application_is_in_progress(
+ application_id_vl varchar
+) RETURNS boolean 
+AS $$
+begin
+  return (exists (select 1 
+  from application.application_status s 
+    inner join application.application_status_type st on s.type_code= st.code 
+  where s.application_id = application_id_vl and s.is_current and not st.is_terminal));
+end;
+$$ LANGUAGE plpgsql;
+COMMENT ON FUNCTION application.application_is_in_progress(
+ application_id_vl varchar
+) IS 'It gives if an application is in progress or not.';
+    
+-- Function application.application_assigned_to --
+CREATE OR REPLACE FUNCTION application.application_assigned_to(
+ assigned_to_code varchar
+  , assignee_id_vl varchar
+  , username_vl varchar
+) RETURNS boolean 
+AS $$
+begin
+  if assigned_to_code = 'Everybody' then
+    return true;
+  elsif assigned_to_code = 'Me' then
+    return coalesce(((select username from system.appuser where id = assignee_id_vl) = username_vl), false);
+  elsif assigned_to_code = 'Office' then
+    return coalesce(((select office_id from system.appuser where id = assignee_id_vl) = (select office_id from system.appuser where username = username_vl)), false);
+  end if;
+  return true;
+end;
+$$ LANGUAGE plpgsql;
+COMMENT ON FUNCTION application.application_assigned_to(
+ assigned_to_code varchar
+  , assignee_id_vl varchar
+  , username_vl varchar
+) IS '';
+    
 -- Sequence source.source_la_nr_seq --
 DROP SEQUENCE IF EXISTS source.source_la_nr_seq;
 CREATE SEQUENCE source.source_la_nr_seq
@@ -3109,6 +3149,7 @@ insert into system.appuser(id, username, first_name, last_name, passwd, active, 
 insert into system.appuser(id, username, first_name, last_name, passwd, active, office_id, office_head) values('registry-head', 'registry', 'Registry', 'Head', '9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08', true, 'registry-regional-office', true);
 insert into system.appuser(id, username, first_name, last_name, passwd, active, office_id, office_head) values('gis-section-head', 'gis', 'Gis', 'Head', '9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08', true, 'cartographic-gis-section', true);
 insert into system.appuser(id, username, first_name, last_name, passwd, active, office_id, office_head) values('sealing-head', 'sealing', 'DocSealing', 'Head', '9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08', true, 'doc-sealing-desk', true);
+insert into system.appuser(id, username, first_name, last_name, passwd, active, office_id, office_head) values('gis-section-mdw', 'gismdw', 'GIS', 'NoHead', '9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08', true, 'cartographic-gis-section', false);
 
 
 
@@ -3284,7 +3325,6 @@ CREATE TABLE application.application_action_type(
 
     -- Internal constraints
     
-    CONSTRAINT application_action_type_operation_valid CHECK (operation in ('normal', 'cancel', 'approve')),
     CONSTRAINT application_action_type_pkey PRIMARY KEY (code)
 );
 
@@ -3871,6 +3911,7 @@ CREATE TABLE system.br_validation(
     target_reg_moment varchar(20),
     target_request_type_code varchar(20),
     target_rrr_type_code varchar(20),
+    target_operation_code varchar(20),
     severity_code varchar(20) NOT NULL,
     order_of_execution integer NOT NULL DEFAULT (0),
 
@@ -3944,11 +3985,11 @@ comment on table system.br_validation_target_type is 'The potential targets of t
     
  -- Data for the table system.br_validation_target_type -- 
 insert into system.br_validation_target_type(code, display_value, status, description) values('application-action', 'Application action::::ITALIANO', 'c', 'The target of the validation is the application action. It accepts one parameter {id} which is the application action id.');
-insert into system.br_validation_target_type(code, display_value, status, description) values('service', 'Service::::ITALIANO', 'x', 'The target of the validation is the service. It accepts one parameter {id} which is the service id.');
 insert into system.br_validation_target_type(code, display_value, status, description) values('rrr', 'Right or Restriction::::ITALIANO', 'c', 'The target of the validation is the rrr. It accepts one parameter {id} which is the rrr id. ');
 insert into system.br_validation_target_type(code, display_value, status, description) values('ba_unit', 'Administrative Unit::::ITALIANO', 'c', 'The target of the validation is the ba_unit. It accepts one parameter {id} which is the ba_unit id.');
 insert into system.br_validation_target_type(code, display_value, status, description) values('source', 'Source::::ITALIANO', 'c', 'The target of the validation is the source. It accepts one parameter {id} which is the source id.');
 insert into system.br_validation_target_type(code, display_value, status, description) values('cadastre_object', 'Cadastre Object::::ITALIANO', 'c', 'The target of the validation is the transaction related with the cadastre change. It accepts one parameter {id} which is the transaction id.');
+insert into system.br_validation_target_type(code, display_value, status, description) values('application', 'Application', 'c', 'The target of the validation is the application. It accepts one parameter {id} which is the application id.');
 
 
 
@@ -5296,31 +5337,6 @@ CREATE TRIGGER __track_history AFTER UPDATE OR DELETE
    ON party.party_id FOR EACH ROW
    EXECUTE PROCEDURE f_for_trg_track_history();
     
---Table application.action_data_field_type ----
-DROP TABLE IF EXISTS application.action_data_field_type CASCADE;
-CREATE TABLE application.action_data_field_type(
-    code varchar(20) NOT NULL,
-    display_value varchar(250) NOT NULL,
-    action_type_code varchar(50) NOT NULL,
-    type_code varchar(20) NOT NULL,
-    is_mandatory bool NOT NULL DEFAULT (false),
-    status char(1),
-    description varchar(555),
-
-    -- Internal constraints
-    
-    CONSTRAINT action_data_field_type_display_in_action UNIQUE (display_value, action_type_code),
-    CONSTRAINT action_data_field_type_pkey PRIMARY KEY (code)
-);
-
-
-comment on table application.action_data_field_type is 'The list of data elements that can be captured for a certain action type.';
-    
- -- Data for the table application.action_data_field_type -- 
-insert into application.action_data_field_type(code, display_value, action_type_code, type_code, is_mandatory, status) values('test', 'Test value', 'regno-vetchecklist', 'string', true, 'c');
-
-
-
 --Table application.application_action ----
 DROP TABLE IF EXISTS application.application_action CASCADE;
 CREATE TABLE application.application_action(
@@ -5446,68 +5462,9 @@ CREATE TRIGGER __track_history AFTER UPDATE OR DELETE
    ON application.application_status FOR EACH ROW
    EXECUTE PROCEDURE f_for_trg_track_history();
     
---Table application.action_data ----
-DROP TABLE IF EXISTS application.action_data CASCADE;
-CREATE TABLE application.action_data(
-    id varchar(40) NOT NULL,
-    action_id varchar(40) NOT NULL,
-    type_code varchar(20) NOT NULL,
-    data_value varchar(500),
-    rowidentifier varchar(40) NOT NULL DEFAULT (uuid_generate_v1()),
-    rowversion integer NOT NULL DEFAULT (0),
-    change_action char(1) NOT NULL DEFAULT ('i'),
-    change_user varchar(50),
-    change_time timestamp NOT NULL DEFAULT (now()),
-
-    -- Internal constraints
-    
-    CONSTRAINT action_data_data UNIQUE (action_id, type_code),
-    CONSTRAINT action_data_pkey PRIMARY KEY (id)
-);
-
-
-
--- Index action_data_index_on_rowidentifier  --
-CREATE INDEX action_data_index_on_rowidentifier ON application.action_data (rowidentifier);
-    
-
-comment on table application.action_data is 'Data related with a certain action.';
-    
-DROP TRIGGER IF EXISTS __track_changes ON application.action_data CASCADE;
-CREATE TRIGGER __track_changes BEFORE UPDATE OR INSERT
-   ON application.action_data FOR EACH ROW
-   EXECUTE PROCEDURE f_for_trg_track_changes();
-    
-
-----Table application.action_data_historic used for the history of data of table application.action_data ---
-DROP TABLE IF EXISTS application.action_data_historic CASCADE;
-CREATE TABLE application.action_data_historic
-(
-    id varchar(40),
-    action_id varchar(40),
-    type_code varchar(20),
-    data_value varchar(500),
-    rowidentifier varchar(40),
-    rowversion integer,
-    change_action char(1),
-    change_user varchar(50),
-    change_time timestamp,
-    change_time_valid_until TIMESTAMP NOT NULL default NOW()
-);
-
-
--- Index action_data_historic_index_on_rowidentifier  --
-CREATE INDEX action_data_historic_index_on_rowidentifier ON application.action_data_historic (rowidentifier);
-    
-
-DROP TRIGGER IF EXISTS __track_history ON application.action_data CASCADE;
-CREATE TRIGGER __track_history AFTER UPDATE OR DELETE
-   ON application.action_data FOR EACH ROW
-   EXECUTE PROCEDURE f_for_trg_track_history();
-    
---Table application.data_type ----
-DROP TABLE IF EXISTS application.data_type CASCADE;
-CREATE TABLE application.data_type(
+--Table application.operation_type ----
+DROP TABLE IF EXISTS application.operation_type CASCADE;
+CREATE TABLE application.operation_type(
     code varchar(20) NOT NULL,
     display_value varchar(250) NOT NULL,
     description varchar(555),
@@ -5515,15 +5472,18 @@ CREATE TABLE application.data_type(
 
     -- Internal constraints
     
-    CONSTRAINT data_type_display_value_unique UNIQUE (display_value),
-    CONSTRAINT data_type_pkey PRIMARY KEY (code)
+    CONSTRAINT operation_type_display_value_unique UNIQUE (display_value),
+    CONSTRAINT operation_type_pkey PRIMARY KEY (code)
 );
 
 
-comment on table application.data_type is 'The list of data types that data elements invovled in actions can take.';
+comment on table application.operation_type is 'The list of operations that can happen to an application when an action is marked as done.';
     
- -- Data for the table application.data_type -- 
-insert into application.data_type(code, display_value, status) values('string', 'String', 'c');
+ -- Data for the table application.operation_type -- 
+insert into application.operation_type(code, display_value, description, status) values('normal', 'Normal', 'Nothing changes to the application.', 'c');
+insert into application.operation_type(code, display_value, description, status) values('validate', 'Validate', 'The application is validated. If the validation fails the action is not completed.', 'c');
+insert into application.operation_type(code, display_value, description, status) values('cancel', 'Cancel', 'The application is cancelled.', 'c');
+insert into application.operation_type(code, display_value, description, status) values('approve', 'Approve', 'The application is approved. Before the approval, the application is validated. If the validation succeeds then the process goes further with the approval.', 'c');
 
 
 
@@ -6318,117 +6278,109 @@ ALTER TABLE party.party_id ADD CONSTRAINT party_id_type_code_fk119
             FOREIGN KEY (type_code) REFERENCES party.id_type(code) ON UPDATE CASCADE ON DELETE RESTRICT;
 CREATE INDEX party_id_type_code_fk119_ind ON party.party_id (type_code);
 
-ALTER TABLE application.action_data_field_type ADD CONSTRAINT action_data_field_type_action_type_code_fk120 
-            FOREIGN KEY (action_type_code) REFERENCES application.application_action_type(code) ON UPDATE CASCADE ON DELETE RESTRICT;
-CREATE INDEX action_data_field_type_action_type_code_fk120_ind ON application.action_data_field_type (action_type_code);
-
-ALTER TABLE application.application_action ADD CONSTRAINT application_action_type_code_fk121 
+ALTER TABLE application.application_action ADD CONSTRAINT application_action_type_code_fk120 
             FOREIGN KEY (type_code) REFERENCES application.application_action_type(code) ON UPDATE CASCADE ON DELETE RESTRICT;
-CREATE INDEX application_action_type_code_fk121_ind ON application.application_action (type_code);
+CREATE INDEX application_action_type_code_fk120_ind ON application.application_action (type_code);
 
-ALTER TABLE application.application_status ADD CONSTRAINT application_status_application_id_fk122 
+ALTER TABLE application.application_status ADD CONSTRAINT application_status_application_id_fk121 
             FOREIGN KEY (application_id) REFERENCES application.application(id) ON UPDATE CASCADE ON DELETE Cascade;
-CREATE INDEX application_status_application_id_fk122_ind ON application.application_status (application_id);
+CREATE INDEX application_status_application_id_fk121_ind ON application.application_status (application_id);
 
-ALTER TABLE application.application_status ADD CONSTRAINT application_status_type_code_fk123 
+ALTER TABLE application.application_status ADD CONSTRAINT application_status_type_code_fk122 
             FOREIGN KEY (type_code) REFERENCES application.application_status_type(code) ON UPDATE CASCADE ON DELETE RESTRICT;
-CREATE INDEX application_status_type_code_fk123_ind ON application.application_status (type_code);
+CREATE INDEX application_status_type_code_fk122_ind ON application.application_status (type_code);
 
-ALTER TABLE application.application_action ADD CONSTRAINT application_action_status_id_fk124 
+ALTER TABLE application.application_action ADD CONSTRAINT application_action_status_id_fk123 
             FOREIGN KEY (status_id) REFERENCES application.application_status(id) ON UPDATE CASCADE ON DELETE Cascade;
-CREATE INDEX application_action_status_id_fk124_ind ON application.application_action (status_id);
+CREATE INDEX application_action_status_id_fk123_ind ON application.application_action (status_id);
 
-ALTER TABLE application.action_data ADD CONSTRAINT action_data_action_id_fk125 
-            FOREIGN KEY (action_id) REFERENCES application.application_action(id) ON UPDATE CASCADE ON DELETE Cascade;
-CREATE INDEX action_data_action_id_fk125_ind ON application.action_data (action_id);
-
-ALTER TABLE application.action_data ADD CONSTRAINT action_data_type_code_fk126 
-            FOREIGN KEY (type_code) REFERENCES application.action_data_field_type(code) ON UPDATE CASCADE ON DELETE RESTRICT;
-CREATE INDEX action_data_type_code_fk126_ind ON application.action_data (type_code);
-
-ALTER TABLE application.request_type ADD CONSTRAINT request_type_starting_status_code_fk127 
+ALTER TABLE application.request_type ADD CONSTRAINT request_type_starting_status_code_fk124 
             FOREIGN KEY (starting_status_code) REFERENCES application.application_status_type(code) ON UPDATE CASCADE ON DELETE RESTRICT;
-CREATE INDEX request_type_starting_status_code_fk127_ind ON application.request_type (starting_status_code);
+CREATE INDEX request_type_starting_status_code_fk124_ind ON application.request_type (starting_status_code);
 
-ALTER TABLE application.application_action_type ADD CONSTRAINT application_action_type_start_status_type_code_fk128 
+ALTER TABLE application.application_action_type ADD CONSTRAINT application_action_type_start_status_type_code_fk125 
             FOREIGN KEY (start_status_type_code) REFERENCES application.application_status_type(code) ON UPDATE CASCADE ON DELETE RESTRICT;
-CREATE INDEX application_action_type_start_status_type_code_fk128_ind ON application.application_action_type (start_status_type_code);
+CREATE INDEX application_action_type_start_status_type_code_fk125_ind ON application.application_action_type (start_status_type_code);
 
-ALTER TABLE application.action_data_field_type ADD CONSTRAINT action_data_field_type_type_code_fk129 
-            FOREIGN KEY (type_code) REFERENCES application.data_type(code) ON UPDATE CASCADE ON DELETE RESTRICT;
-CREATE INDEX action_data_field_type_type_code_fk129_ind ON application.action_data_field_type (type_code);
-
-ALTER TABLE application.application_spatial_unit ADD CONSTRAINT application_spatial_unit_application_id_fk130 
+ALTER TABLE application.application_spatial_unit ADD CONSTRAINT application_spatial_unit_application_id_fk126 
             FOREIGN KEY (application_id) REFERENCES application.application(id) ON UPDATE CASCADE ON DELETE CASCADE;
-CREATE INDEX application_spatial_unit_application_id_fk130_ind ON application.application_spatial_unit (application_id);
+CREATE INDEX application_spatial_unit_application_id_fk126_ind ON application.application_spatial_unit (application_id);
 
-ALTER TABLE application.application_spatial_unit ADD CONSTRAINT application_spatial_unit_spatial_unit_id_fk131 
+ALTER TABLE application.application_spatial_unit ADD CONSTRAINT application_spatial_unit_spatial_unit_id_fk127 
             FOREIGN KEY (spatial_unit_id) REFERENCES cadastre.spatial_unit(id) ON UPDATE CASCADE ON DELETE CASCADE;
-CREATE INDEX application_spatial_unit_spatial_unit_id_fk131_ind ON application.application_spatial_unit (spatial_unit_id);
+CREATE INDEX application_spatial_unit_spatial_unit_id_fk127_ind ON application.application_spatial_unit (spatial_unit_id);
 
-ALTER TABLE transaction.transaction ADD CONSTRAINT transaction_from_application_id_fk132 
+ALTER TABLE transaction.transaction ADD CONSTRAINT transaction_from_application_id_fk128 
             FOREIGN KEY (from_application_id) REFERENCES application.application(id) ON UPDATE CASCADE ON DELETE RESTRICT;
-CREATE INDEX transaction_from_application_id_fk132_ind ON transaction.transaction (from_application_id);
+CREATE INDEX transaction_from_application_id_fk128_ind ON transaction.transaction (from_application_id);
 
-ALTER TABLE source.deed ADD CONSTRAINT deed_id_fk133 
+ALTER TABLE source.deed ADD CONSTRAINT deed_id_fk129 
             FOREIGN KEY (id) REFERENCES source.source(id) ON UPDATE CASCADE ON DELETE CASCADE;
-CREATE INDEX deed_id_fk133_ind ON source.deed (id);
+CREATE INDEX deed_id_fk129_ind ON source.deed (id);
 
-ALTER TABLE source.deed ADD CONSTRAINT deed_instrument_type_code_fk134 
+ALTER TABLE source.deed ADD CONSTRAINT deed_instrument_type_code_fk130 
             FOREIGN KEY (instrument_type_code) REFERENCES administrative.rrr_type(code) ON UPDATE CASCADE ON DELETE RESTRICT;
-CREATE INDEX deed_instrument_type_code_fk134_ind ON source.deed (instrument_type_code);
+CREATE INDEX deed_instrument_type_code_fk130_ind ON source.deed (instrument_type_code);
 
-ALTER TABLE source.deed ADD CONSTRAINT deed_first_party_id_fk135 
+ALTER TABLE source.deed ADD CONSTRAINT deed_first_party_id_fk131 
             FOREIGN KEY (first_party_id) REFERENCES party.party(id) ON UPDATE CASCADE ON DELETE RESTRICT;
-CREATE INDEX deed_first_party_id_fk135_ind ON source.deed (first_party_id);
+CREATE INDEX deed_first_party_id_fk131_ind ON source.deed (first_party_id);
 
-ALTER TABLE source.deed ADD CONSTRAINT deed_second_party_id_fk136 
+ALTER TABLE source.deed ADD CONSTRAINT deed_second_party_id_fk132 
             FOREIGN KEY (second_party_id) REFERENCES party.party(id) ON UPDATE CASCADE ON DELETE RESTRICT;
-CREATE INDEX deed_second_party_id_fk136_ind ON source.deed (second_party_id);
+CREATE INDEX deed_second_party_id_fk132_ind ON source.deed (second_party_id);
 
-ALTER TABLE source.deed ADD CONSTRAINT deed_forward_reference_id_fk137 
+ALTER TABLE source.deed ADD CONSTRAINT deed_forward_reference_id_fk133 
             FOREIGN KEY (forward_reference_id) REFERENCES source.deed(id) ON UPDATE CASCADE ON DELETE RESTRICT;
-CREATE INDEX deed_forward_reference_id_fk137_ind ON source.deed (forward_reference_id);
+CREATE INDEX deed_forward_reference_id_fk133_ind ON source.deed (forward_reference_id);
 
-ALTER TABLE source.deed ADD CONSTRAINT deed_backward_reference_id_fk138 
+ALTER TABLE source.deed ADD CONSTRAINT deed_backward_reference_id_fk134 
             FOREIGN KEY (backward_reference_id) REFERENCES source.deed(id) ON UPDATE CASCADE ON DELETE RESTRICT;
-CREATE INDEX deed_backward_reference_id_fk138_ind ON source.deed (backward_reference_id);
+CREATE INDEX deed_backward_reference_id_fk134_ind ON source.deed (backward_reference_id);
 
-ALTER TABLE cadastre.district ADD CONSTRAINT district_region_id_fk139 
+ALTER TABLE cadastre.district ADD CONSTRAINT district_region_id_fk135 
             FOREIGN KEY (region_id) REFERENCES cadastre.region(id) ON UPDATE CASCADE ON DELETE RESTRICT;
-CREATE INDEX district_region_id_fk139_ind ON cadastre.district (region_id);
+CREATE INDEX district_region_id_fk135_ind ON cadastre.district (region_id);
 
-ALTER TABLE cadastre.section ADD CONSTRAINT section_district_id_fk140 
+ALTER TABLE cadastre.section ADD CONSTRAINT section_district_id_fk136 
             FOREIGN KEY (district_id) REFERENCES cadastre.district(id) ON UPDATE CASCADE ON DELETE RESTRICT;
-CREATE INDEX section_district_id_fk140_ind ON cadastre.section (district_id);
+CREATE INDEX section_district_id_fk136_ind ON cadastre.section (district_id);
 
-ALTER TABLE cadastre.block ADD CONSTRAINT block_section_id_fk141 
+ALTER TABLE cadastre.block ADD CONSTRAINT block_section_id_fk137 
             FOREIGN KEY (section_id) REFERENCES cadastre.section(id) ON UPDATE CASCADE ON DELETE RESTRICT;
-CREATE INDEX block_section_id_fk141_ind ON cadastre.block (section_id);
+CREATE INDEX block_section_id_fk137_ind ON cadastre.block (section_id);
 
-ALTER TABLE cadastre.cadastre_object ADD CONSTRAINT cadastre_object_found_in_cadastre_object_id_fk142 
+ALTER TABLE cadastre.cadastre_object ADD CONSTRAINT cadastre_object_found_in_cadastre_object_id_fk138 
             FOREIGN KEY (found_in_cadastre_object_id) REFERENCES cadastre.cadastre_object(id) ON UPDATE CASCADE ON DELETE RESTRICT;
-CREATE INDEX cadastre_object_found_in_cadastre_object_id_fk142_ind ON cadastre.cadastre_object (found_in_cadastre_object_id);
+CREATE INDEX cadastre_object_found_in_cadastre_object_id_fk138_ind ON cadastre.cadastre_object (found_in_cadastre_object_id);
 
-ALTER TABLE source.deed ADD CONSTRAINT deed_land_use_code_fk143 
+ALTER TABLE source.deed ADD CONSTRAINT deed_land_use_code_fk139 
             FOREIGN KEY (land_use_code) REFERENCES source.land_use_type(code) ON UPDATE CASCADE ON DELETE RESTRICT;
-CREATE INDEX deed_land_use_code_fk143_ind ON source.deed (land_use_code);
+CREATE INDEX deed_land_use_code_fk139_ind ON source.deed (land_use_code);
 
-ALTER TABLE party.party ADD CONSTRAINT party_nationality_code_fk144 
+ALTER TABLE party.party ADD CONSTRAINT party_nationality_code_fk140 
             FOREIGN KEY (nationality_code) REFERENCES party.country(code) ON UPDATE CASCADE ON DELETE RESTRICT;
-CREATE INDEX party_nationality_code_fk144_ind ON party.party (nationality_code);
+CREATE INDEX party_nationality_code_fk140_ind ON party.party (nationality_code);
 
-ALTER TABLE source.power_of_attorney ADD CONSTRAINT power_of_attorney_id_fk145 
+ALTER TABLE source.power_of_attorney ADD CONSTRAINT power_of_attorney_id_fk141 
             FOREIGN KEY (id) REFERENCES source.source(id) ON UPDATE CASCADE ON DELETE CASCADE;
-CREATE INDEX power_of_attorney_id_fk145_ind ON source.power_of_attorney (id);
+CREATE INDEX power_of_attorney_id_fk141_ind ON source.power_of_attorney (id);
 
-ALTER TABLE system.appuser ADD CONSTRAINT appuser_office_id_fk146 
+ALTER TABLE system.appuser ADD CONSTRAINT appuser_office_id_fk142 
             FOREIGN KEY (office_id) REFERENCES system.office(id) ON UPDATE CASCADE ON DELETE RESTRICT;
-CREATE INDEX appuser_office_id_fk146_ind ON system.appuser (office_id);
+CREATE INDEX appuser_office_id_fk142_ind ON system.appuser (office_id);
 
-ALTER TABLE application.application_status_type ADD CONSTRAINT application_status_type_office_id_fk147 
+ALTER TABLE application.application_status_type ADD CONSTRAINT application_status_type_office_id_fk143 
             FOREIGN KEY (office_id) REFERENCES system.office(id) ON UPDATE CASCADE ON DELETE RESTRICT;
-CREATE INDEX application_status_type_office_id_fk147_ind ON application.application_status_type (office_id);
+CREATE INDEX application_status_type_office_id_fk143_ind ON application.application_status_type (office_id);
+
+ALTER TABLE application.application_action_type ADD CONSTRAINT application_action_type_operation_fk144 
+            FOREIGN KEY (operation) REFERENCES application.operation_type(code) ON UPDATE CASCADE ON DELETE RESTRICT;
+CREATE INDEX application_action_type_operation_fk144_ind ON application.application_action_type (operation);
+
+ALTER TABLE system.br_validation ADD CONSTRAINT br_validation_target_operation_code_fk145 
+            FOREIGN KEY (target_operation_code) REFERENCES application.operation_type(code) ON UPDATE CASCADE ON DELETE RESTRICT;
+CREATE INDEX br_validation_target_operation_code_fk145_ind ON system.br_validation (target_operation_code);
 --Generate triggers for tables --
 -- triggers for table source.source -- 
 
@@ -6588,25 +6540,6 @@ CREATE TRIGGER trg_after_change after insert or update
    ON application.application_fee FOR EACH ROW
    EXECUTE PROCEDURE application.f_for_tbl_application_fee_trg_after_change();
     
--- triggers for table application.application_action -- 
-
- 
-
-CREATE OR REPLACE FUNCTION application.f_for_tbl_application_action_trg_after_new() RETURNS TRIGGER 
-AS $$
-begin
-  insert into application.action_data(id, action_id, type_code, change_user)
-  select uuid_generate_v1(), new.id, code, new.change_user
-  from application.action_data_field_type
-  where action_type_code = new.type_code;
-  return new;
-end;
-$$ LANGUAGE plpgsql;
-DROP TRIGGER IF EXISTS trg_after_new ON application.application_action CASCADE;
-CREATE TRIGGER trg_after_new after insert
-   ON application.application_action FOR EACH ROW
-   EXECUTE PROCEDURE application.f_for_tbl_application_action_trg_after_new();
-    
 -- triggers for table application.application_status -- 
 
  
@@ -6661,6 +6594,11 @@ CREATE TRIGGER trg_after_new after insert
 insert into system.approle_appgroup (approle_code, appgroup_id)
 SELECT r.code, 'super-group-id' FROM system.approle r
 where r.code not in (select approle_code from system.approle_appgroup g where appgroup_id = 'super-group-id');
+
+insert into system.appuser_appgroup (appuser_id, appgroup_id)
+select u.id, g.id
+from system.appuser u, system.appgroup g
+where (u.id, g.id) not in (select appuser_id, appgroup_id from system.appuser_appgroup );
 
 --Make the function ST_MakeBox3D(geometry, geometry) RETURNS box3d if it does not exist. The function does not exist if Postgis 2.0 is used
 
