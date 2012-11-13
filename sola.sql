@@ -605,6 +605,34 @@ COMMENT ON FUNCTION application.application_assigned_to(
   , username_vl varchar
 ) IS '';
     
+-- Function application.get_application_parties --
+CREATE OR REPLACE FUNCTION application.get_application_parties(
+ application_id_vl varchar
+  , show_role bool
+) RETURNS varchar 
+AS $$
+begin
+  if show_role then
+    return 
+      (SELECT string_agg((COALESCE(p.name, '') || ' ') || COALESCE(p.last_name, '') || ' (' || p_r.display_value || ')', ', ') AS full_name
+       FROM party.party p
+        INNER JOIN application.application_party a_p ON a_p.party_id = p.id
+        INNER JOIN party.party_role_type p_r on a_p.role_code = p_r.code
+       WHERE a_p.application_id = application_id_vl);
+  else
+    return 
+     (SELECT string_agg((COALESCE(p.name, '') || ' ') || COALESCE(p.last_name, ''), ', ') AS full_name
+      FROM party.party p
+        INNER JOIN application.application_party a_p ON a_p.party_id = p.id
+      WHERE a_p.application_id = application_id_vl);
+  end if;
+end;
+$$ LANGUAGE plpgsql;
+COMMENT ON FUNCTION application.get_application_parties(
+ application_id_vl varchar
+  , show_role bool
+) IS 'It retrieves the parties seperated by commas that are involved in an application.';
+    
 -- Sequence source.source_la_nr_seq --
 DROP SEQUENCE IF EXISTS source.source_la_nr_seq;
 CREATE SEQUENCE source.source_la_nr_seq
@@ -2770,6 +2798,7 @@ CREATE TABLE application.application(
     total_amount_paid numeric(20, 2) NOT NULL DEFAULT (0),
     request_code varchar(20) NOT NULL,
     regional_number varchar(15),
+    target_locality varchar(200),
     rowidentifier varchar(40) NOT NULL DEFAULT (uuid_generate_v1()),
     rowversion integer NOT NULL DEFAULT (0),
     change_action char(1) NOT NULL DEFAULT ('i'),
@@ -2822,6 +2851,7 @@ CREATE TABLE application.application_historic
     total_amount_paid numeric(20, 2),
     request_code varchar(20),
     regional_number varchar(15),
+    target_locality varchar(200),
     rowidentifier varchar(40),
     rowversion integer,
     change_action char(1),
@@ -2998,7 +3028,7 @@ insert into party.party_role_type(code, display_value, status) values('conveyor'
 insert into party.party_role_type(code, display_value, status) values('notary', 'Notary::::Notaio', 'c');
 insert into party.party_role_type(code, display_value, status) values('writer', 'Writer::::Autore', 'x');
 insert into party.party_role_type(code, display_value, status) values('surveyor', 'Surveyor::::Perito', 'x');
-insert into party.party_role_type(code, display_value, used_in_application, status) values('certifiedSurveyor', 'Licenced Surveyor::::Perito con Licenza', true, 'c');
+insert into party.party_role_type(code, display_value, used_in_application, status) values('certifiedSurveyor', 'Licenced Surveyor', true, 'c');
 insert into party.party_role_type(code, display_value, status) values('bank', 'Bank::::Banca', 'c');
 insert into party.party_role_type(code, display_value, status) values('moneyProvider', 'Money Provider::::Istituto Credito', 'c');
 insert into party.party_role_type(code, display_value, status) values('employee', 'Employee::::Impiegato', 'x');
@@ -3006,11 +3036,12 @@ insert into party.party_role_type(code, display_value, status) values('farmer', 
 insert into party.party_role_type(code, display_value, status) values('citizen', 'Citizen::::Cittadino', 'c');
 insert into party.party_role_type(code, display_value, status) values('stateAdministrator', 'Registrar / Approving Surveyor::::Cancelleriere/ Perito Approvatore/', 'c');
 insert into party.party_role_type(code, display_value, status, description) values('landOfficer', 'Land Officer::::Ufficiale del Registro Territoriale', 'c', 'Extension to LADM');
-insert into party.party_role_type(code, display_value, used_in_application, status, description) values('lodgingAgent', 'Lodging Agent::::Richiedente Registrazione', true, 'c', 'Extension to LADM');
+insert into party.party_role_type(code, display_value, used_in_application, status, description) values('lodgingAgent', 'Lodging Agent', true, 'c', 'Extension to LADM');
 insert into party.party_role_type(code, display_value, status, description) values('powerOfAttorney', 'Power of Attorney::::Procuratore', 'c', 'Extension to LADM');
 insert into party.party_role_type(code, display_value, status, description) values('transferee', 'Transferee (to)::::Avente Causa', 'c', 'Extension to LADM');
 insert into party.party_role_type(code, display_value, status, description) values('transferor', 'Transferor (from)::::Dante Causa', 'c', 'Extension to LADM');
 insert into party.party_role_type(code, display_value, used_in_application, status, description) values('applicant', 'Applicant', true, 'c', 'Extension to LADM');
+insert into party.party_role_type(code, display_value, used_in_application, status, description) values('client', 'Client', true, 'c', 'Extension to LADM');
 
 
 
@@ -3347,7 +3378,7 @@ insert into application.application_action_type(code, start_status_type_code, di
 insert into application.application_action_type(code, start_status_type_code, display_value, next_status_type_code, description, action_order, operation) values('smdcadchange-set-cancelled', 'smdcadchange-make-changes', 'Cancel', 'smdcadchange-cancelled', 'The application will be cancelled.', 50, 'cancel');
 insert into application.application_action_type(code, start_status_type_code, display_value, description, action_order) values('smdcadchange-receivepayment', 'smdcadchange-submit', 'Receive payment', 'Check if the payment is fully made.', 15);
 insert into application.application_action_type(code, start_status_type_code, display_value, next_status_type_code, description, action_order, operation) values('plangen-set-completed', 'smdplanapp-submit', 'Complete', 'smdplanapp-completed', 'The application moves to completed status.', 50, 'approve');
-insert into application.application_action_type(code, start_status_type_code, display_value, next_status_type_code, description, action_order, operation) values('plangen-set-cancelled', 'smdplanapp-submit', 'Cancel', 'smdplanapp-cancelled', 'The application will be cancelled.', 60, 'cancel');
+insert into application.application_action_type(code, start_status_type_code, display_value, next_status_type_code, description, action_order, gui_type, operation) values('plangen-set-cancelled', 'smdplanapp-submit', 'Cancel', 'smdplanapp-cancelled', 'The application will be cancelled.', 60, 'MultipleRequestsActionPanel', 'cancel');
 insert into application.application_action_type(code, display_value, description, action_order) values('generic-add-document', 'Add document', 'It adds a document in the list of documents related with application.', 200);
 insert into application.application_action_type(code, display_value, description, action_order) values('generic-remove-document', 'Remove document', 'It removes a document from the application.', 200);
 insert into application.application_action_type(code, display_value, description, action_order) values('generic-add-spatialunit', 'Add spatial unit', 'It adds new spatial unit to the application.', 200);
@@ -5195,6 +5226,7 @@ comment on table application.fee_type is 'Ghana extension: The types of fees app
     
  -- Data for the table application.fee_type -- 
 insert into application.fee_type(code, display_value, status) values('dutyStamp', 'Duty stamp tax', 'c');
+insert into application.fee_type(code, display_value, status, description) values('regionalNumberFee', 'Regional number fee', 'c', 'Fee that is paid when applying for a regional number');
 
 
 
@@ -6687,16 +6719,21 @@ order by b.id;
 -------View application.application_search_result ---------
 DROP VIEW IF EXISTS application.application_search_result CASCADE;
 CREATE VIEW application.application_search_result AS SELECT a.id, a.nr, a.lodging_datetime, a.expected_completion_date, a.assignee_id, a.assigned_datetime, a.total_fee, a.total_amount_paid, 
-a.request_code, (COALESCE(u.first_name, '') || ' ') || COALESCE(u.last_name, '') AS assignee_name, 
-  (SELECT string_agg((COALESCE(p.name, '') || ' ') || COALESCE(p.last_name, ''), ',') AS full_name
-    FROM party.party p
-      JOIN application.application_party a_p ON a_p.party_id = p.id
-    WHERE a_p.application_id = a.id AND a_p.role_code = 'applicant') AS applicants, 
+  a.request_code, (COALESCE(u.first_name, '') || ' ') || COALESCE(u.last_name, '') AS assignee_name, 
+  application.get_application_parties(a.id, true) as applicants, 
   ast.display_value AS status_display_value
 FROM application.application a
   JOIN application.application_status a_s ON a.id = a_s.application_id AND a_s.is_current
   JOIN application.application_status_type ast ON ast.code = a_s.type_code
   LEFT JOIN system.appuser u ON a.assignee_id = u.id;
+
+-------View application.plan_certification_request ---------
+DROP VIEW IF EXISTS application.plan_certification_request CASCADE;
+CREATE VIEW application.plan_certification_request AS select a.id as application_id, a_s_u.spatial_unit_id
+from application.application a inner join application.application_spatial_unit a_s_u on a.id = a_s_u.application_id
+  inner join application.application_status a_s on a.id = a_s.application_id and a_s.is_current
+where a.request_code = 'smdPlanApprov' 
+and (a_s.type_code in (select code from application.application_status_type where not is_terminal) or a_s.type_code = 'smdplanapp-completed');
 
 
 -- Scan tables and views for geometry columns                 and populate geometry_columns table
