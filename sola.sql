@@ -594,7 +594,7 @@ begin
   elsif assigned_to_code = 'Me' then
     return coalesce(((select username from system.appuser where id = assignee_id_vl) = username_vl), false);
   elsif assigned_to_code = 'Office' then
-    return coalesce(((select office_id from system.appuser where id = assignee_id_vl) = (select office_id from system.appuser where username = username_vl)), false);
+    return coalesce(((select office_code from system.appuser where id = assignee_id_vl) = (select office_code from system.appuser where username = username_vl)), false);
   end if;
   return true;
 end;
@@ -2796,7 +2796,7 @@ CREATE TABLE application.application(
         CONSTRAINT enforce_geotype_location CHECK (geometrytype(location) = 'MULTIPOINT'::text OR location IS NULL),
     total_fee numeric(20, 2) NOT NULL DEFAULT (0),
     total_amount_paid numeric(20, 2) NOT NULL DEFAULT (0),
-    request_code varchar(20) NOT NULL,
+    request_code varchar(50) NOT NULL,
     regional_number varchar(15),
     target_locality varchar(200),
     rowidentifier varchar(40) NOT NULL DEFAULT (uuid_generate_v1()),
@@ -2849,7 +2849,7 @@ CREATE TABLE application.application_historic
         CONSTRAINT enforce_geotype_location CHECK (geometrytype(location) = 'MULTIPOINT'::text OR location IS NULL),
     total_fee numeric(20, 2),
     total_amount_paid numeric(20, 2),
-    request_code varchar(20),
+    request_code varchar(50),
     regional_number varchar(15),
     target_locality varchar(200),
     rowidentifier varchar(40),
@@ -2880,7 +2880,7 @@ CREATE INDEX application_historic_id_ind ON application.application_historic (id
 --Table application.request_type ----
 DROP TABLE IF EXISTS application.request_type CASCADE;
 CREATE TABLE application.request_type(
-    code varchar(20) NOT NULL,
+    code varchar(50) NOT NULL,
     request_category_code varchar(20) NOT NULL,
     display_value varchar(250) NOT NULL,
     description varchar(555),
@@ -2909,10 +2909,10 @@ LADM Definition
 Not Applicable';
     
  -- Data for the table application.request_type -- 
-insert into application.request_type(code, request_category_code, display_value, status, nr_days_to_complete, base_fee, area_base_fee, value_base_fee, nr_properties_required, starting_status_code) values('smdPlanApprov', 'registrationServices', 'Plan certification', 'c', 10, 100, 100, 100, 100, 'smdplanapp-submit');
-insert into application.request_type(code, request_category_code, display_value, status, nr_days_to_complete, base_fee, area_base_fee, value_base_fee, nr_properties_required, starting_status_code) values('smdApplyRegNo', 'registrationServices', 'Regional number', 'c', 10, 100, 100, 100, 100, 'smdregnr-submit');
-insert into application.request_type(code, request_category_code, display_value, status, nr_days_to_complete, base_fee, area_base_fee, value_base_fee, nr_properties_required, starting_status_code) values('cadastreChange', 'registrationServices', 'New parcel', 'c', 10, 100, 100, 100, 1, 'smdcadchange-submit');
-insert into application.request_type(code, request_category_code, display_value, status, nr_days_to_complete, base_fee, area_base_fee, value_base_fee, nr_properties_required, starting_status_code) values('redefineCadastre', 'registrationServices', 'Edit parcel', 'c', 10, 100, 100, 100, 1, 'smdcadredef-submit');
+insert into application.request_type(code, request_category_code, display_value, status, nr_days_to_complete, base_fee, area_base_fee, value_base_fee, nr_properties_required, starting_status_code) values('smd-plancertification', 'registrationServices', 'Plan certification', 'c', 10, 100, 100, 100, 100, 'smd-plancertification-received');
+insert into application.request_type(code, request_category_code, display_value, status, nr_days_to_complete, base_fee, area_base_fee, value_base_fee, nr_properties_required, starting_status_code) values('smd-regnr', 'registrationServices', 'Regional number', 'c', 10, 100, 100, 100, 100, 'smd-regnr-received');
+insert into application.request_type(code, request_category_code, display_value, status, nr_days_to_complete, base_fee, area_base_fee, value_base_fee, nr_properties_required, starting_status_code) values('cadastreChange', 'registrationServices', 'New parcel', 'c', 10, 100, 100, 100, 1, 'smd-cadchange-submit');
+insert into application.request_type(code, request_category_code, display_value, status, nr_days_to_complete, base_fee, area_base_fee, value_base_fee, nr_properties_required, starting_status_code) values('redefineCadastre', 'registrationServices', 'Edit parcel', 'c', 10, 100, 100, 100, 1, 'smd-cadredef-submit');
 
 
 
@@ -3115,7 +3115,7 @@ CREATE TABLE system.appuser(
     passwd varchar(100) NOT NULL DEFAULT (uuid_generate_v1()),
     active bool NOT NULL DEFAULT (true),
     description varchar(255),
-    office_id varchar(40),
+    office_code varchar(40),
     office_head bool NOT NULL DEFAULT (false),
     rowidentifier varchar(40) NOT NULL DEFAULT (uuid_generate_v1()),
     rowversion integer NOT NULL DEFAULT (0),
@@ -3154,7 +3154,7 @@ CREATE TABLE system.appuser_historic
     passwd varchar(100),
     active bool,
     description varchar(255),
-    office_id varchar(40),
+    office_code varchar(40),
     office_head bool,
     rowidentifier varchar(40),
     rowversion integer,
@@ -3175,12 +3175,13 @@ CREATE TRIGGER __track_history AFTER UPDATE OR DELETE
    EXECUTE PROCEDURE f_for_trg_track_history();
     
  -- Data for the table system.appuser -- 
-insert into system.appuser(id, username, first_name, last_name, passwd, active) values('test-id', 'test', 'Test', 'The BOSS', '9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08', true);
-insert into system.appuser(id, username, first_name, last_name, passwd, active, office_id, office_head) values('scau-head', 'scau', 'SCAU', 'Head', '9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08', true, 'csau-front-desk', true);
-insert into system.appuser(id, username, first_name, last_name, passwd, active, office_id, office_head) values('registry-head', 'registry', 'Registry', 'Head', '9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08', true, 'registry-regional-office', true);
-insert into system.appuser(id, username, first_name, last_name, passwd, active, office_id, office_head) values('gis-section-head', 'gis', 'Gis', 'Head', '9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08', true, 'cartographic-gis-section', true);
-insert into system.appuser(id, username, first_name, last_name, passwd, active, office_id, office_head) values('sealing-head', 'sealing', 'DocSealing', 'Head', '9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08', true, 'doc-sealing-desk', true);
-insert into system.appuser(id, username, first_name, last_name, passwd, active, office_id, office_head) values('gis-section-mdw', 'gismdw', 'GIS', 'NoHead', '9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08', true, 'cartographic-gis-section', false);
+insert into system.appuser(id, username, first_name, last_name, passwd, active, office_head) values('test-id', 'test', 'Test', 'The BOSS', '9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08', true, false);
+insert into system.appuser(id, username, first_name, last_name, passwd, active, office_code, office_head) values('csau-head', 'csau-head', 'CSAU', 'Head', '9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08', true, 'csau', true);
+insert into system.appuser(id, username, first_name, last_name, passwd, active, office_code, office_head) values('smd-registry-head', 'registry-head', 'Registry', 'Head', '9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08', true, 'smd-registry', true);
+insert into system.appuser(id, username, first_name, last_name, passwd, active, office_code, office_head) values('gis-section-head', 'gis-head', 'Gis', 'Head', '9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08', true, 'cartographic-gis-section', true);
+insert into system.appuser(id, username, first_name, last_name, passwd, active, office_code, office_head) values('gis-section-normal', 'gismdw', 'GIS', 'Normal', '9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08', true, 'cartographic-gis-section', false);
+insert into system.appuser(id, username, first_name, last_name, passwd, active, office_code, office_head) values('csau-normal', 'csau-normal', 'CSAU', 'Normal', '9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08', true, 'csau', false);
+insert into system.appuser(id, username, first_name, last_name, passwd, active, office_code, office_head) values('smd-registry-normal', 'registry-normal', 'Registry', 'Normal', '9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08', true, 'smd-registry', false);
 
 
 
@@ -3364,33 +3365,37 @@ comment on table application.application_action_type is 'The list of potential a
 There are actions that does not belong to a certain status, but can be taken in any moment in the application.';
     
  -- Data for the table application.application_action_type -- 
-insert into application.application_action_type(code, start_status_type_code, display_value, description, action_order) values('regno-vetchecklist', 'smdregnr-submit', 'Vet against checklist', 'Check if required infromation is collected.', 10);
-insert into application.application_action_type(code, start_status_type_code, display_value, description, action_order) values('regno-receivepayment', 'smdregnr-submit', 'Receive payment', 'Check if the payment is fully made.', 20);
-insert into application.application_action_type(code, start_status_type_code, display_value, description, action_order) values('plangen-vetchecklist', 'smdplanapp-submit', 'Vet against checklist', 'Check if required infromation is collected.', 10);
-insert into application.application_action_type(code, start_status_type_code, display_value, description, action_order) values('plangen-receivepay', 'smdplanapp-submit', 'Receive payment', 'Check if the payment is fully made.', 20);
-insert into application.application_action_type(code, start_status_type_code, display_value, description, action_order, gui_type) values('plangen-generate', 'smdplanapp-submit', 'Generate plan', 'The plan generation starts from this screen.', 30, 'MapRequestActionPanel');
-insert into application.application_action_type(code, start_status_type_code, display_value, next_status_type_code, description, action_order, operation) values('regno-set-completed', 'smdregnr-submit', 'Complete', 'smdregnr-completed', 'The application moves to completed status.', 30, 'approve');
-insert into application.application_action_type(code, start_status_type_code, display_value, description, action_order, gui_type) values('smdcadchange-make-changes', 'smdcadchange-make-changes', 'Change map (split/merge/new)', 'The cadastre change process starts by clicking in the Make changes button.', 10, 'MapRequestActionPanel');
-insert into application.application_action_type(code, start_status_type_code, display_value, description, action_order) values('smdcadchange-vetchecklist', 'smdcadchange-submit', 'Vet against checklist', 'Check if required infromation is collected.', 10);
-insert into application.application_action_type(code, start_status_type_code, display_value, next_status_type_code, description, action_order) values('smdcadchange-move-to-change', 'smdcadchange-submit', 'Go to Make Changes', 'smdcadchange-make-changes', 'Move to the status where the cadastre change can start.', 20);
-insert into application.application_action_type(code, start_status_type_code, display_value, description, action_order, gui_type) values('regno-generate-regional-no', 'smdregnr-submit', 'Generate regional number', 'Generate regional number by clicking the button below.', 25, 'RegionalNumberGenerationActionPanel');
-insert into application.application_action_type(code, start_status_type_code, display_value, next_status_type_code, description, action_order, operation) values('smdcadchange-set-completed', 'smdcadchange-make-changes', 'Complete', 'smdcadchange-completed', 'The application moves to completed status.', 40, 'approve');
-insert into application.application_action_type(code, start_status_type_code, display_value, next_status_type_code, description, action_order, operation) values('smdcadchange-set-cancelled', 'smdcadchange-make-changes', 'Cancel', 'smdcadchange-cancelled', 'The application will be cancelled.', 50, 'cancel');
-insert into application.application_action_type(code, start_status_type_code, display_value, description, action_order) values('smdcadchange-receivepayment', 'smdcadchange-submit', 'Receive payment', 'Check if the payment is fully made.', 15);
-insert into application.application_action_type(code, start_status_type_code, display_value, next_status_type_code, description, action_order, operation) values('plangen-set-completed', 'smdplanapp-submit', 'Complete', 'smdplanapp-completed', 'The application moves to completed status.', 50, 'approve');
-insert into application.application_action_type(code, start_status_type_code, display_value, next_status_type_code, description, action_order, gui_type, operation) values('plangen-set-cancelled', 'smdplanapp-submit', 'Cancel', 'smdplanapp-cancelled', 'The application will be cancelled.', 60, 'MultipleRequestsActionPanel', 'cancel');
+insert into application.application_action_type(code, start_status_type_code, display_value, description, action_order) values('smd-regnr-received-vetchecklist', 'smd-regnr-received', 'Vet against checklist', 'Check if required infromation is collected.', 10);
+insert into application.application_action_type(code, start_status_type_code, display_value, description, action_order) values('smd-regnr-receivepayment', 'smd-regnr-vetted', 'Receive payment', 'Check if the payment is fully made.', 10);
+insert into application.application_action_type(code, start_status_type_code, display_value, description, action_order) values('smd-plancertification-vetchecklist', 'smd-plancertification-received', 'Vet against checklist', 'Check if required infromation is collected.', 10);
+insert into application.application_action_type(code, start_status_type_code, display_value, description, action_order) values('smd-plancertification-receivepay', 'smd-plancertification-received', 'Receive payment', 'Check if the payment is fully made.', 20);
+insert into application.application_action_type(code, start_status_type_code, display_value, description, action_order, gui_type) values('smd-plancertification-generate', 'smd-plancertification-received', 'Generate plan', 'The plan generation starts from this screen.', 30, 'MapRequestActionPanel');
+insert into application.application_action_type(code, start_status_type_code, display_value, description, action_order, gui_type) values('smdcadchange-make-changes', 'smd-cadchange-make-changes', 'Change map (split/merge/new)', 'The cadastre change process starts by clicking in the Make changes button.', 10, 'MapRequestActionPanel');
+insert into application.application_action_type(code, start_status_type_code, display_value, description, action_order) values('smdcadchange-vetchecklist', 'smd-cadchange-submit', 'Vet against checklist', 'Check if required infromation is collected.', 10);
+insert into application.application_action_type(code, start_status_type_code, display_value, next_status_type_code, description, action_order) values('smdcadchange-move-to-change', 'smd-cadchange-submit', 'Go to Make Changes', 'smd-cadchange-make-changes', 'Move to the status where the cadastre change can start.', 20);
+insert into application.application_action_type(code, start_status_type_code, display_value, description, action_order, gui_type) values('smd-regnr-paid-assign-nr', 'smd-regnr-paid', 'Assign Regional No. and print', 'Generate regional number by clicking the button below.', 10, 'RegionalNumberGenerationActionPanel');
+insert into application.application_action_type(code, start_status_type_code, display_value, next_status_type_code, description, action_order, operation) values('smdcadchange-set-completed', 'smd-cadchange-make-changes', 'Complete', 'smd-cadchange-completed', 'The application moves to completed status.', 40, 'approve');
+insert into application.application_action_type(code, start_status_type_code, display_value, next_status_type_code, description, action_order, operation) values('smdcadchange-set-cancelled', 'smd-cadchange-make-changes', 'Cancel', 'smd-cadchange-cancelled', 'The application will be cancelled.', 50, 'cancel');
+insert into application.application_action_type(code, start_status_type_code, display_value, description, action_order) values('smdcadchange-receivepayment', 'smd-cadchange-submit', 'Receive payment', 'Check if the payment is fully made.', 15);
+insert into application.application_action_type(code, start_status_type_code, display_value, next_status_type_code, description, action_order, operation) values('smd-plancertification-set-completed', 'smd-plancertification-received', 'Complete', 'smd-plancertification-completed', 'The application moves to completed status.', 50, 'approve');
+insert into application.application_action_type(code, start_status_type_code, display_value, next_status_type_code, description, action_order, gui_type, operation) values('smd-plancertification-set-cancelled', 'smd-plancertification-received', 'Cancel', 'smd-plancertification-cancelled', 'The application will be cancelled.', 60, 'MultipleRequestsActionPanel', 'cancel');
 insert into application.application_action_type(code, display_value, description, action_order) values('generic-add-document', 'Add document', 'It adds a document in the list of documents related with application.', 200);
 insert into application.application_action_type(code, display_value, description, action_order) values('generic-remove-document', 'Remove document', 'It removes a document from the application.', 200);
 insert into application.application_action_type(code, display_value, description, action_order) values('generic-add-spatialunit', 'Add spatial unit', 'It adds new spatial unit to the application.', 200);
 insert into application.application_action_type(code, display_value, description, action_order) values('generic-remove-spatialunit', 'Remove spatial unit', 'It removes a spatial unit to the application.', 200);
 insert into application.application_action_type(code, display_value, description, action_order) values('generic-add-person', 'Add person', 'It adds a person to the application.', 200);
 insert into application.application_action_type(code, display_value, description, action_order) values('generic-remove-person', 'Remove person', 'It removes a person from the application.', 200);
-insert into application.application_action_type(code, start_status_type_code, display_value, description, action_order) values('smdcadredef-submit-vetchecklist', 'smdcadredef-submit', 'Vet against checklist', 'Check if required infromation is collected.', 10);
-insert into application.application_action_type(code, start_status_type_code, display_value, next_status_type_code, description, action_order) values('smdcadredef-submit-makechanges', 'smdcadredef-submit', 'Go to make changes', 'smdcadredef-make-changes', 'It moves the application in the status to make changes.', 20);
-insert into application.application_action_type(code, start_status_type_code, display_value, next_status_type_code, description, action_order, operation) values('smdcadredef-submit-cancel', 'smdcadredef-submit', 'Cancel', 'smdcadredef-cancelled', 'It cancells the application.', 30, 'cancel');
-insert into application.application_action_type(code, start_status_type_code, display_value, description, action_order, gui_type) values('smdcadredef-makechanges-makechanges', 'smdcadredef-make-changes', 'Make changes', 'From this screen, the operation of changing/removing/adding nodes of cadastre objects can happen.', 10, 'MapRequestActionPanel');
-insert into application.application_action_type(code, start_status_type_code, display_value, next_status_type_code, description, action_order, operation) values('smdcadredef-makechanges-complete', 'smdcadredef-make-changes', 'Complete', 'smdcadredef-completed', 'It approves the changes.', 20, 'approve');
-insert into application.application_action_type(code, start_status_type_code, display_value, next_status_type_code, description, action_order, operation) values('smdcadredef-makechanges-approve', 'smdcadredef-make-changes', 'Cancel', 'smdcadredef-cancelled', 'It cancells the changes and the application.', 30, 'cancel');
+insert into application.application_action_type(code, start_status_type_code, display_value, description, action_order) values('smdcadredef-submit-vetchecklist', 'smd-cadredef-submit', 'Vet against checklist', 'Check if required infromation is collected.', 10);
+insert into application.application_action_type(code, start_status_type_code, display_value, next_status_type_code, description, action_order) values('smdcadredef-submit-makechanges', 'smd-cadredef-submit', 'Go to make changes', 'smd-cadredef-make-changes', 'It moves the application in the status to make changes.', 20);
+insert into application.application_action_type(code, start_status_type_code, display_value, next_status_type_code, description, action_order, operation) values('smdcadredef-submit-cancel', 'smd-cadredef-submit', 'Cancel', 'smd-cadredef-cancelled', 'It cancells the application.', 30, 'cancel');
+insert into application.application_action_type(code, start_status_type_code, display_value, description, action_order, gui_type) values('smdcadredef-makechanges-makechanges', 'smd-cadredef-make-changes', 'Make changes', 'From this screen, the operation of changing/removing/adding nodes of cadastre objects can happen.', 10, 'MapRequestActionPanel');
+insert into application.application_action_type(code, start_status_type_code, display_value, next_status_type_code, description, action_order, operation) values('smdcadredef-makechanges-complete', 'smd-cadredef-make-changes', 'Complete', 'smd-cadredef-completed', 'It approves the changes.', 20, 'approve');
+insert into application.application_action_type(code, start_status_type_code, display_value, next_status_type_code, description, action_order, operation) values('smdcadredef-makechanges-approve', 'smd-cadredef-make-changes', 'Cancel', 'smd-cadredef-cancelled', 'It cancells the changes and the application.', 30, 'cancel');
+insert into application.application_action_type(code, start_status_type_code, display_value, next_status_type_code, description, action_order) values('smd-regnr-received-set-vetted', 'smd-regnr-received', 'Change status to vetted', 'smd-regnr-vetted', 'It changes the status of the application to Vetted.', 20);
+insert into application.application_action_type(code, start_status_type_code, display_value, next_status_type_code, description, action_order, operation) values('smd-regnr-received-set-rejected', 'smd-regnr-received', 'Reject', 'smd-regnr-rejected', 'It rejects the application.', 30, 'cancel');
+insert into application.application_action_type(code, start_status_type_code, display_value, next_status_type_code, description, action_order) values('smd-regnr-vetted-set-paid', 'smd-regnr-vetted', 'Change status to paid', 'smd-regnr-paid', 'It changes the status to Paid.', 20);
+insert into application.application_action_type(code, start_status_type_code, display_value, next_status_type_code, description, action_order) values('smd-regnr-vetted-set-rejected', 'smd-regnr-vetted', 'Reject', 'smd-regnr-rejected', 'It rejects the application.', 30);
+insert into application.application_action_type(code, start_status_type_code, display_value, next_status_type_code, description, action_order, operation) values('smd-regnr-paid-set-completed', 'smd-regnr-paid', 'Complete', 'smd-regnr-completed', 'It changes the status of the application to Completed.', 20, 'approve');
 
 
 
@@ -3574,7 +3579,7 @@ CREATE TRIGGER __track_history AFTER UPDATE OR DELETE
 DROP TABLE IF EXISTS application.request_type_requires_source_type CASCADE;
 CREATE TABLE application.request_type_requires_source_type(
     source_type_code varchar(20) NOT NULL,
-    request_type_code varchar(20) NOT NULL,
+    request_type_code varchar(50) NOT NULL,
 
     -- Internal constraints
     
@@ -3607,19 +3612,22 @@ CREATE TABLE application.application_status_type(
 comment on table application.application_status_type is 'The list of potential statuses an application can get.';
     
  -- Data for the table application.application_status_type -- 
-insert into application.application_status_type(code, display_value, is_terminal, status, office_id) values('smdregnr-submit', 'Submit', false, 'c', 'csau-front-desk');
-insert into application.application_status_type(code, display_value, status, office_id) values('smdplanapp-submit', 'Submit', 'c', 'csau-front-desk');
-insert into application.application_status_type(code, display_value, status, office_id) values('smdcadchange-submit', 'Submit', 'c', 'csau-front-desk');
-insert into application.application_status_type(code, display_value, status, office_id) values('smdcadredef-submit', 'Submit', 'c', 'csau-front-desk');
-insert into application.application_status_type(code, display_value, is_terminal, status, office_id) values('smdregnr-completed', 'Completed', true, 'c', 'csau-front-desk');
-insert into application.application_status_type(code, display_value, status, office_id) values('smdcadchange-make-changes', 'Make Changes', 'c', 'cartographic-gis-section');
-insert into application.application_status_type(code, display_value, status, office_id) values('smdcadredef-make-changes', 'Make Changes', 'c', 'cartographic-gis-section');
-insert into application.application_status_type(code, display_value, is_terminal, status, office_id) values('smdcadchange-completed', 'Completed', true, 'c', 'cartographic-gis-section');
-insert into application.application_status_type(code, display_value, is_terminal, status, office_id) values('smdcadredef-completed', 'Completed', true, 'c', 'cartographic-gis-section');
-insert into application.application_status_type(code, display_value, is_terminal, status, office_id) values('smdcadchange-cancelled', 'Cancelled', true, 'c', 'cartographic-gis-section');
-insert into application.application_status_type(code, display_value, is_terminal, status, office_id) values('smdcadredef-cancelled', 'Cancelled', true, 'c', 'cartographic-gis-section');
-insert into application.application_status_type(code, display_value, is_terminal, status, office_id) values('smdplanapp-completed', 'Completed', true, 'c', 'cartographic-gis-section');
-insert into application.application_status_type(code, display_value, is_terminal, status, office_id) values('smdplanapp-cancelled', 'Cancelled', true, 'c', 'cartographic-gis-section');
+insert into application.application_status_type(code, display_value, is_terminal, status, office_id) values('smd-regnr-received', 'Received', false, 'c', 'csau');
+insert into application.application_status_type(code, display_value, is_terminal, status, office_id) values('smd-plancertification-received', 'Received', false, 'c', 'csau');
+insert into application.application_status_type(code, display_value, is_terminal, status, office_id) values('smd-cadchange-submit', 'Submit', false, 'c', 'csau');
+insert into application.application_status_type(code, display_value, is_terminal, status, office_id) values('smd-cadredef-submit', 'Submit', false, 'c', 'csau');
+insert into application.application_status_type(code, display_value, is_terminal, status, office_id) values('smd-regnr-completed', 'Completed', true, 'c', 'archive');
+insert into application.application_status_type(code, display_value, is_terminal, status, office_id) values('smd-cadchange-make-changes', 'Make Changes', false, 'c', 'cartographic-gis-section');
+insert into application.application_status_type(code, display_value, is_terminal, status, office_id) values('smd-cadredef-make-changes', 'Make Changes', false, 'c', 'cartographic-gis-section');
+insert into application.application_status_type(code, display_value, is_terminal, status, office_id) values('smd-cadchange-completed', 'Completed', true, 'c', 'archive');
+insert into application.application_status_type(code, display_value, is_terminal, status, office_id) values('smd-cadredef-completed', 'Completed', true, 'c', 'archive');
+insert into application.application_status_type(code, display_value, is_terminal, status, office_id) values('smd-cadchange-cancelled', 'Cancelled', true, 'c', 'archive');
+insert into application.application_status_type(code, display_value, is_terminal, status, office_id) values('smd-cadredef-cancelled', 'Cancelled', true, 'c', 'archive');
+insert into application.application_status_type(code, display_value, is_terminal, status, office_id) values('smd-plancertification-completed', 'Completed', true, 'c', 'archive');
+insert into application.application_status_type(code, display_value, is_terminal, status, office_id) values('smd-plancertification-cancelled', 'Cancelled', true, 'c', 'archive');
+insert into application.application_status_type(code, display_value, is_terminal, status, office_id) values('smd-regnr-vetted', 'Vetted', false, 'c', 'csau');
+insert into application.application_status_type(code, display_value, is_terminal, status, office_id) values('smd-regnr-paid', 'Paid', false, 'c', 'smd-registry');
+insert into application.application_status_type(code, display_value, is_terminal, status, office_id) values('smd-regnr-rejected', 'Rejected', true, 'c', 'archive');
 
 
 
@@ -3816,6 +3824,8 @@ insert into system.config_map_layer(name, title, type_code, active, visible_in_s
 insert into system.config_map_layer(name, title, type_code, active, visible_in_start, item_order, style, pojo_structure, pojo_query_name, pojo_query_name_for_select) values('buildings', 'Buildings', 'pojo', true, true, 120, 'building.xml', 'theGeom:Polygon,label:""', 'SpatialResult.getBuildings', 'dynamic.informationtool.get_building');
 insert into system.config_map_layer(name, title, type_code, active, visible_in_start, item_order, style, pojo_structure, pojo_query_name, pojo_query_name_for_select) values('allodials', 'Allodials', 'pojo', true, true, 130, 'allodial.xml', 'theGeom:Polygon,label:""', 'SpatialResult.getAllodials', 'dynamic.informationtool.get_allodial');
 insert into system.config_map_layer(name, title, type_code, active, visible_in_start, item_order, style, pojo_structure, pojo_query_name) values('parcel-nodes', 'Parcel nodes', 'pojo', true, true, 40, 'parcel_node.xml', 'theGeom:Polygon,label:""', 'SpatialResult.getParcelNodes');
+insert into system.config_map_layer(name, title, type_code, active, visible_in_start, item_order, style, pojo_structure, pojo_query_name) values('parcel-pending-completed', 'Parcels with plan certification completed', 'pojo', true, true, 33, 'pending_parcels_completed.xml', 'theGeom:Polygon,label:""', 'SpatialResult.getParcelPendingCompleted');
+insert into system.config_map_layer(name, title, type_code, active, visible_in_start, item_order, style, pojo_structure, pojo_query_name) values('parcel-pending-inprogress', 'Parcels with plan certification in progress', 'pojo', true, true, 35, 'pending_parcels_inprogress.xml', 'theGeom:Polygon,label:""', 'SpatialResult.getParcelPendingInProgress');
 
 
 
@@ -3940,7 +3950,7 @@ CREATE TABLE system.br_validation(
     target_code varchar(20) NOT NULL,
     target_action_type_code varchar(50),
     target_reg_moment varchar(20),
-    target_request_type_code varchar(20),
+    target_request_type_code varchar(50),
     target_rrr_type_code varchar(20),
     target_operation_code varchar(20),
     severity_code varchar(20) NOT NULL,
@@ -4930,6 +4940,8 @@ insert into system.query(name, sql) values('dynamic.informationtool.get_building
 insert into system.query(name, sql) values('SpatialResult.getAllodials', 'select co.id, co.name_lastpart as label,  st_asewkb(co.geom_polygon) as the_geom from cadastre.cadastre_object co where type_code= ''allodial'' and status_code= ''current'' and ST_Intersects(co.geom_polygon, ST_SetSRID(ST_MakeBox3D(ST_Point(#{minx}, #{miny}),ST_Point(#{maxx}, #{maxy})), #{srid}))');
 insert into system.query(name, sql) values('dynamic.informationtool.get_allodial', 'select co.id, co.name_firstpart || ''/'' || co.name_lastpart as nr, ( SELECT spatial_value_area.size FROM cadastre.spatial_value_area      WHERE spatial_value_area.type_code=''officialArea'' and spatial_value_area.spatial_unit_id = co.id) AS area_official_sqm,       st_asewkb(co.geom_polygon) as the_geom      from cadastre.cadastre_object co      where type_code= ''allodial'' and status_code= ''current''      and ST_Intersects(co.geom_polygon, ST_SetSRID(ST_GeomFromWKB(#{wkb_geom}), #{srid}))');
 insert into system.query(name, sql) values('SpatialResult.getParcelNodes', 'select distinct st_astext(geom) as id, '''' as label, st_asewkb(geom) as the_geom  from (select (ST_DumpPoints(geom_polygon)).* from cadastre.cadastre_object co   where type_code= ''parcel'' and status_code= ''current''   and ST_Intersects(co.geom_polygon, ST_SetSRID(ST_MakeBox3D(ST_Point(#{minx}, #{miny}),ST_Point(#{maxx}, #{maxy})), #{srid}))) tmp_table ');
+insert into system.query(name, sql) values('SpatialResult.getParcelPendingCompleted', 'select co.id, co.name_lastpart as label,  st_asewkb(co.geom_polygon) as the_geom from cadastre.cadastre_object co where type_code= ''parcel''    and status_code= ''current''    and ST_Intersects(co.geom_polygon, ST_SetSRID(ST_MakeBox3D(ST_Point(#{minx}, #{miny}),ST_Point(#{maxx}, #{maxy})), #{srid}))   and id in (select spatial_unit_id      from application.application_spatial_unit a_su        inner join application.application_status a_s on a_su.application_id = a_s.application_id     where a_s.is_current and a_s.type_code = ''smd-plancertification-completed'')');
+insert into system.query(name, sql) values('SpatialResult.getParcelPendingInProgress', 'select co.id, co.name_lastpart as label,  st_asewkb(co.geom_polygon) as the_geom from cadastre.cadastre_object co where type_code= ''parcel''    and status_code= ''current''    and ST_Intersects(co.geom_polygon, ST_SetSRID(ST_MakeBox3D(ST_Point(#{minx}, #{miny}),ST_Point(#{maxx}, #{maxy})), #{srid}))   and id in (select spatial_unit_id      from application.application_spatial_unit a_su      where application.application_is_in_progress(a_su.application_id)) ');
 
 
 
@@ -5298,7 +5310,7 @@ CREATE TRIGGER __track_history AFTER UPDATE OR DELETE
 --Table application.request_type_fee_type ----
 DROP TABLE IF EXISTS application.request_type_fee_type CASCADE;
 CREATE TABLE application.request_type_fee_type(
-    request_code varchar(20) NOT NULL,
+    request_code varchar(50) NOT NULL,
     fee_code varchar(20) NOT NULL,
 
     -- Internal constraints
@@ -5770,8 +5782,10 @@ comment on table source.power_of_attorney is '';
 --Table system.office ----
 DROP TABLE IF EXISTS system.office CASCADE;
 CREATE TABLE system.office(
-    id varchar(40) NOT NULL,
-    name varchar(100) NOT NULL,
+    code varchar(40) NOT NULL,
+    display_value varchar(100) NOT NULL,
+    status char(1) NOT NULL,
+    description varchar(5555),
     rowidentifier varchar(40) NOT NULL DEFAULT (uuid_generate_v1()),
     rowversion integer NOT NULL DEFAULT (0),
     change_action char(1) NOT NULL DEFAULT ('i'),
@@ -5780,7 +5794,8 @@ CREATE TABLE system.office(
 
     -- Internal constraints
     
-    CONSTRAINT office_pkey PRIMARY KEY (id)
+    CONSTRAINT office_display_value_unique UNIQUE (display_value),
+    CONSTRAINT office_pkey PRIMARY KEY (code)
 );
 
 
@@ -5801,8 +5816,10 @@ CREATE TRIGGER __track_changes BEFORE UPDATE OR INSERT
 DROP TABLE IF EXISTS system.office_historic CASCADE;
 CREATE TABLE system.office_historic
 (
-    id varchar(40),
-    name varchar(100),
+    code varchar(40),
+    display_value varchar(100),
+    status char(1),
+    description varchar(5555),
     rowidentifier varchar(40),
     rowversion integer,
     change_action char(1),
@@ -5822,10 +5839,10 @@ CREATE TRIGGER __track_history AFTER UPDATE OR DELETE
    EXECUTE PROCEDURE f_for_trg_track_history();
     
  -- Data for the table system.office -- 
-insert into system.office(id, name) values('csau-front-desk', 'SCAU Front Desk');
-insert into system.office(id, name) values('registry-regional-office', 'Registry - Regional Office');
-insert into system.office(id, name) values('cartographic-gis-section', 'Cartographic and GIS Section');
-insert into system.office(id, name) values('doc-sealing-desk', 'Document sealing desk');
+insert into system.office(code, display_value, status) values('csau', 'CSAU', 'c');
+insert into system.office(code, display_value, status) values('smd-registry', 'SMD Registry', 'c');
+insert into system.office(code, display_value, status) values('cartographic-gis-section', 'Cartographic and GIS Section', 'c');
+insert into system.office(code, display_value, status) values('archive', 'Archive', 'c');
 
 
 
@@ -6398,12 +6415,12 @@ ALTER TABLE source.power_of_attorney ADD CONSTRAINT power_of_attorney_id_fk141
             FOREIGN KEY (id) REFERENCES source.source(id) ON UPDATE CASCADE ON DELETE CASCADE;
 CREATE INDEX power_of_attorney_id_fk141_ind ON source.power_of_attorney (id);
 
-ALTER TABLE system.appuser ADD CONSTRAINT appuser_office_id_fk142 
-            FOREIGN KEY (office_id) REFERENCES system.office(id) ON UPDATE CASCADE ON DELETE RESTRICT;
-CREATE INDEX appuser_office_id_fk142_ind ON system.appuser (office_id);
+ALTER TABLE system.appuser ADD CONSTRAINT appuser_office_code_fk142 
+            FOREIGN KEY (office_code) REFERENCES system.office(code) ON UPDATE CASCADE ON DELETE RESTRICT;
+CREATE INDEX appuser_office_code_fk142_ind ON system.appuser (office_code);
 
 ALTER TABLE application.application_status_type ADD CONSTRAINT application_status_type_office_id_fk143 
-            FOREIGN KEY (office_id) REFERENCES system.office(id) ON UPDATE CASCADE ON DELETE RESTRICT;
+            FOREIGN KEY (office_id) REFERENCES system.office(code) ON UPDATE CASCADE ON DELETE RESTRICT;
 CREATE INDEX application_status_type_office_id_fk143_ind ON application.application_status_type (office_id);
 
 ALTER TABLE application.application_action_type ADD CONSTRAINT application_action_type_operation_fk144 
@@ -6604,7 +6621,7 @@ begin
   -- It assigns the application to the head of the office where the application is moved.
   if (select count(*) from application.application_status where application_id = new.application_id)>1 then
     assignee_id_v = (select u.id from system.appuser u 
-      inner join application.application_status_type s on u.office_id= s.office_id and u.office_head
+      inner join application.application_status_type s on u.office_code= s.office_id and u.office_head
       where s.code = new.type_code);
   else
     assignee_id_v = (select u.id from system.appuser u where u.username= new.change_user);
@@ -6732,8 +6749,8 @@ DROP VIEW IF EXISTS application.plan_certification_request CASCADE;
 CREATE VIEW application.plan_certification_request AS select a.id as application_id, a_s_u.spatial_unit_id
 from application.application a inner join application.application_spatial_unit a_s_u on a.id = a_s_u.application_id
   inner join application.application_status a_s on a.id = a_s.application_id and a_s.is_current
-where a.request_code = 'smdPlanApprov' 
-and (a_s.type_code in (select code from application.application_status_type where not is_terminal) or a_s.type_code = 'smdplanapp-completed');
+where a.request_code = 'smd-plancertification' 
+and (a_s.type_code in (select code from application.application_status_type where not is_terminal) or a_s.type_code = 'smd-plancertification-completed');
 
 
 -- Scan tables and views for geometry columns                 and populate geometry_columns table

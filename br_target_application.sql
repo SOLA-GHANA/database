@@ -79,7 +79,7 @@ where application_id = #{id} and role_code = ''certifiedSurveyor''
 ');
 
 insert into system.br_validation(br_id, severity_code, target_operation_code, target_code, target_request_type_code, order_of_execution) 
-values('application-regional-no-surveyor-present', 'critical', 'validate', 'application', 'smdApplyRegNo', 7);
+values('application-regional-no-surveyor-present', 'critical', 'validate', 'application', 'smd-regnr', 7);
 ----------------------------------------------------------------------------------------------------
 insert into system.br(id, technical_type_code, feedback) 
 values('application-regional-no-client-present', 'sql', 
@@ -93,7 +93,7 @@ where application_id = #{id} and role_code = ''client''
 ');
 
 insert into system.br_validation(br_id, severity_code, target_operation_code, target_code, target_request_type_code, order_of_execution) 
-values('application-regional-no-client-present', 'critical', 'validate', 'application', 'smdApplyRegNo', 7);
+values('application-regional-no-client-present', 'critical', 'validate', 'application', 'smd-regnr', 7);
 ----------------------------------------------------------------------------------------------------
 insert into system.br(id, technical_type_code, feedback) 
 values('application-party-present', 'sql', 
@@ -106,7 +106,7 @@ from application.application_party
 where application_id = #{id}');
 
 insert into system.br_validation(br_id, severity_code, target_operation_code, target_code, target_request_type_code, order_of_execution) 
-values('application-party-present', 'critical', 'validate', 'application', 'smdPlanApprov', 7);
+values('application-party-present', 'critical', 'validate', 'application', 'smd-plancertification', 7);
 
 insert into system.br_validation(br_id, severity_code, target_operation_code, target_code, target_request_type_code, order_of_execution) 
 values('application-party-present', 'critical', 'validate', 'application', 'cadastreChange', 7);
@@ -128,7 +128,21 @@ where target.application_id = #{id}
   and others.application_id != #{id}');
 
 insert into system.br_validation(br_id, severity_code, target_operation_code, target_code, target_request_type_code, order_of_execution) 
-values('application-plan-approval-multiple-requests', 'critical', 'validate', 'application', 'smdPlanApprov', 7);
+values('application-plan-approval-multiple-requests', 'critical', 'validate', 'application', 'smd-plancertification', 7);
+----------------------------------------------------------------------------------------------------
+
+insert into system.br(id, technical_type_code, feedback) 
+values('application-change-only-by-assigned-user', 'sql', 
+'Only the assinged user is allowed to change the application.' );
+
+insert into system.br_definition(br_id, active_from, active_until, body) 
+values('application-change-only-by-assigned-user', now(), 'infinity', 
+'select assignee_id = (select id from system.appuser where username = #{current_user}) as vl
+from application.application
+where id = #{id}');
+
+insert into system.br_validation(br_id, severity_code, target_operation_code, target_code, order_of_execution) 
+values('application-change-only-by-assigned-user', 'critical', 'change', 'application', 7);
 ----------------------------------------------------------------------------------------------------
 
 update system.br set display_name = id where display_name !=id;
