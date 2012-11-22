@@ -3182,6 +3182,7 @@ insert into system.appuser(id, username, first_name, last_name, passwd, active, 
 insert into system.appuser(id, username, first_name, last_name, passwd, active, office_code, office_head) values('gis-section-normal', 'gismdw', 'GIS', 'Normal', '9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08', true, 'cartographic-gis-section', false);
 insert into system.appuser(id, username, first_name, last_name, passwd, active, office_code, office_head) values('csau-normal', 'csau-normal', 'CSAU', 'Normal', '9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08', true, 'csau', false);
 insert into system.appuser(id, username, first_name, last_name, passwd, active, office_code, office_head) values('smd-registry-normal', 'registry-normal', 'Registry', 'Normal', '9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08', true, 'smd-registry', false);
+insert into system.appuser(id, username, first_name, last_name, passwd, active, office_code, office_head) values('archive-head', 'archive-head', 'Archive', 'Head', '9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08', true, 'archive', true);
 
 
 
@@ -5528,6 +5529,7 @@ insert into application.operation_type(code, display_value, description, status)
 insert into application.operation_type(code, display_value, description, status) values('validate', 'Validate', 'The application is validated. If the validation fails the action is not completed.', 'c');
 insert into application.operation_type(code, display_value, description, status) values('cancel', 'Cancel', 'The application is cancelled.', 'c');
 insert into application.operation_type(code, display_value, description, status) values('approve', 'Approve', 'The application is approved. Before the approval, the application is validated. If the validation succeeds then the process goes further with the approval.', 'c');
+insert into application.operation_type(code, display_value, description, status) values('change', 'Change', 'The application changes', 'c');
 
 
 
@@ -6474,6 +6476,24 @@ CREATE TRIGGER trg_change_from_pending before update
 -- triggers for table application.application -- 
 
  
+
+CREATE OR REPLACE FUNCTION application.f_for_tbl_application_trg_new() RETURNS TRIGGER 
+AS $$
+begin
+  if new.request_code is not null then
+    new.expected_completion_date = new.lodging_datetime 
+     + (select (nr_days_to_complete::varchar || ' days')::interval 
+         from application.request_type 
+         where code = new.request_code);
+  end if;
+  return new;
+end;
+$$ LANGUAGE plpgsql;
+DROP TRIGGER IF EXISTS trg_new ON application.application CASCADE;
+CREATE TRIGGER trg_new before insert
+   ON application.application FOR EACH ROW
+   EXECUTE PROCEDURE application.f_for_tbl_application_trg_new();
+    
 
 CREATE OR REPLACE FUNCTION application.f_for_tbl_application_trg_after_new() RETURNS TRIGGER 
 AS $$
