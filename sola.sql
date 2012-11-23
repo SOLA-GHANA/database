@@ -184,20 +184,8 @@ CREATE OR REPLACE FUNCTION public.compare_strings(
   , string2 varchar
 ) RETURNS bool 
 AS $$
-  DECLARE
-    rec record;
-    result boolean;
   BEGIN
-      result = false;
-      for rec in select regexp_split_to_table(lower(string1),'[^a-z0-9]') as word loop
-          if rec.word != '' then 
-            if not string2 ~* rec.word then
-                return false;
-            end if;
-            result = true;
-          end if;
-      end loop;
-      return result;
+    return string1 ilike '%' || string2 || '%';
   END;
 $$ LANGUAGE plpgsql;
 COMMENT ON FUNCTION public.compare_strings(
