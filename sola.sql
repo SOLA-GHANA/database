@@ -3590,7 +3590,7 @@ CREATE TABLE application.application_status_type(
     is_terminal bool NOT NULL DEFAULT (false),
     status char(1) NOT NULL DEFAULT ('t'),
     description varchar(555),
-    office_id varchar(40) NOT NULL,
+    office_code varchar(40) NOT NULL,
 
     -- Internal constraints
     
@@ -3601,22 +3601,22 @@ CREATE TABLE application.application_status_type(
 comment on table application.application_status_type is 'The list of potential statuses an application can get.';
     
  -- Data for the table application.application_status_type -- 
-insert into application.application_status_type(code, display_value, is_terminal, status, office_id) values('smd-regnr-received', 'Received', false, 'c', 'csau');
-insert into application.application_status_type(code, display_value, is_terminal, status, office_id) values('smd-plancertification-received', 'Received', false, 'c', 'csau');
-insert into application.application_status_type(code, display_value, is_terminal, status, office_id) values('smd-cadchange-submit', 'Submit', false, 'c', 'csau');
-insert into application.application_status_type(code, display_value, is_terminal, status, office_id) values('smd-cadredef-submit', 'Submit', false, 'c', 'csau');
-insert into application.application_status_type(code, display_value, is_terminal, status, office_id) values('smd-regnr-completed', 'Completed', true, 'c', 'archive');
-insert into application.application_status_type(code, display_value, is_terminal, status, office_id) values('smd-cadchange-make-changes', 'Make Changes', false, 'c', 'cartographic-gis-section');
-insert into application.application_status_type(code, display_value, is_terminal, status, office_id) values('smd-cadredef-make-changes', 'Make Changes', false, 'c', 'cartographic-gis-section');
-insert into application.application_status_type(code, display_value, is_terminal, status, office_id) values('smd-cadchange-completed', 'Completed', true, 'c', 'archive');
-insert into application.application_status_type(code, display_value, is_terminal, status, office_id) values('smd-cadredef-completed', 'Completed', true, 'c', 'archive');
-insert into application.application_status_type(code, display_value, is_terminal, status, office_id) values('smd-cadchange-cancelled', 'Cancelled', true, 'c', 'archive');
-insert into application.application_status_type(code, display_value, is_terminal, status, office_id) values('smd-cadredef-cancelled', 'Cancelled', true, 'c', 'archive');
-insert into application.application_status_type(code, display_value, is_terminal, status, office_id) values('smd-plancertification-completed', 'Completed', true, 'c', 'archive');
-insert into application.application_status_type(code, display_value, is_terminal, status, office_id) values('smd-plancertification-cancelled', 'Cancelled', true, 'c', 'archive');
-insert into application.application_status_type(code, display_value, is_terminal, status, office_id) values('smd-regnr-vetted', 'Vetted', false, 'c', 'csau');
-insert into application.application_status_type(code, display_value, is_terminal, status, office_id) values('smd-regnr-paid', 'Paid', false, 'c', 'smd-registry');
-insert into application.application_status_type(code, display_value, is_terminal, status, office_id) values('smd-regnr-rejected', 'Rejected', true, 'c', 'archive');
+insert into application.application_status_type(code, display_value, is_terminal, status, office_code) values('smd-regnr-received', 'Received', false, 'c', 'csau');
+insert into application.application_status_type(code, display_value, is_terminal, status, office_code) values('smd-plancertification-received', 'Received', false, 'c', 'csau');
+insert into application.application_status_type(code, display_value, is_terminal, status, office_code) values('smd-cadchange-submit', 'Submit', false, 'c', 'csau');
+insert into application.application_status_type(code, display_value, is_terminal, status, office_code) values('smd-cadredef-submit', 'Submit', false, 'c', 'csau');
+insert into application.application_status_type(code, display_value, is_terminal, status, office_code) values('smd-regnr-completed', 'Completed', true, 'c', 'archive');
+insert into application.application_status_type(code, display_value, is_terminal, status, office_code) values('smd-cadchange-make-changes', 'Make Changes', false, 'c', 'cartographic-gis-section');
+insert into application.application_status_type(code, display_value, is_terminal, status, office_code) values('smd-cadredef-make-changes', 'Make Changes', false, 'c', 'cartographic-gis-section');
+insert into application.application_status_type(code, display_value, is_terminal, status, office_code) values('smd-cadchange-completed', 'Completed', true, 'c', 'archive');
+insert into application.application_status_type(code, display_value, is_terminal, status, office_code) values('smd-cadredef-completed', 'Completed', true, 'c', 'archive');
+insert into application.application_status_type(code, display_value, is_terminal, status, office_code) values('smd-cadchange-cancelled', 'Cancelled', true, 'c', 'archive');
+insert into application.application_status_type(code, display_value, is_terminal, status, office_code) values('smd-cadredef-cancelled', 'Cancelled', true, 'c', 'archive');
+insert into application.application_status_type(code, display_value, is_terminal, status, office_code) values('smd-plancertification-completed', 'Completed', true, 'c', 'archive');
+insert into application.application_status_type(code, display_value, is_terminal, status, office_code) values('smd-plancertification-cancelled', 'Cancelled', true, 'c', 'archive');
+insert into application.application_status_type(code, display_value, is_terminal, status, office_code) values('smd-regnr-vetted', 'Vetted', false, 'c', 'csau');
+insert into application.application_status_type(code, display_value, is_terminal, status, office_code) values('smd-regnr-paid', 'Paid', false, 'c', 'smd-registry');
+insert into application.application_status_type(code, display_value, is_terminal, status, office_code) values('smd-regnr-rejected', 'Rejected', true, 'c', 'archive');
 
 
 
@@ -5228,6 +5228,7 @@ comment on table application.fee_type is 'Ghana extension: The types of fees app
  -- Data for the table application.fee_type -- 
 insert into application.fee_type(code, display_value, status) values('dutyStamp', 'Duty stamp tax', 'c');
 insert into application.fee_type(code, display_value, status, description) values('regionalNumberFee', 'Regional number fee', 'c', 'Fee that is paid when applying for a regional number');
+insert into application.fee_type(code, display_value, status) values('parcelCadastralFee', 'Parcel/cadastral fee', 'c');
 
 
 
@@ -5775,7 +5776,7 @@ CREATE TABLE system.office(
     code varchar(40) NOT NULL,
     display_value varchar(100) NOT NULL,
     status char(1) NOT NULL,
-    description varchar(5555),
+    description varchar(555),
     rowidentifier varchar(40) NOT NULL DEFAULT (uuid_generate_v1()),
     rowversion integer NOT NULL DEFAULT (0),
     change_action char(1) NOT NULL DEFAULT ('i'),
@@ -5809,7 +5810,7 @@ CREATE TABLE system.office_historic
     code varchar(40),
     display_value varchar(100),
     status char(1),
-    description varchar(5555),
+    description varchar(555),
     rowidentifier varchar(40),
     rowversion integer,
     change_action char(1),
@@ -6234,7 +6235,7 @@ ALTER TABLE system.approle_appgroup ADD CONSTRAINT approle_appgroup_appgroup_id_
 CREATE INDEX approle_appgroup_appgroup_id_fk98_ind ON system.approle_appgroup (appgroup_id);
 
 ALTER TABLE application.application_action_type ADD CONSTRAINT application_action_type_next_status_type_code_fk99 
-            FOREIGN KEY (next_status_type_code) REFERENCES application.application_status_type(code) ON UPDATE CASCADE ON DELETE RESTRICT;
+            FOREIGN KEY (next_status_type_code) REFERENCES application.application_status_type(code) ON UPDATE CASCADE ON DELETE Set null;
 CREATE INDEX application_action_type_next_status_type_code_fk99_ind ON application.application_action_type (next_status_type_code);
 
 ALTER TABLE system.br_validation ADD CONSTRAINT br_validation_target_action_type_code_fk100 
@@ -6338,7 +6339,7 @@ ALTER TABLE application.request_type ADD CONSTRAINT request_type_starting_status
 CREATE INDEX request_type_starting_status_code_fk124_ind ON application.request_type (starting_status_code);
 
 ALTER TABLE application.application_action_type ADD CONSTRAINT application_action_type_start_status_type_code_fk125 
-            FOREIGN KEY (start_status_type_code) REFERENCES application.application_status_type(code) ON UPDATE CASCADE ON DELETE RESTRICT;
+            FOREIGN KEY (start_status_type_code) REFERENCES application.application_status_type(code) ON UPDATE CASCADE ON DELETE Cascade;
 CREATE INDEX application_action_type_start_status_type_code_fk125_ind ON application.application_action_type (start_status_type_code);
 
 ALTER TABLE application.application_spatial_unit ADD CONSTRAINT application_spatial_unit_application_id_fk126 
@@ -6409,9 +6410,9 @@ ALTER TABLE system.appuser ADD CONSTRAINT appuser_office_code_fk142
             FOREIGN KEY (office_code) REFERENCES system.office(code) ON UPDATE CASCADE ON DELETE RESTRICT;
 CREATE INDEX appuser_office_code_fk142_ind ON system.appuser (office_code);
 
-ALTER TABLE application.application_status_type ADD CONSTRAINT application_status_type_office_id_fk143 
-            FOREIGN KEY (office_id) REFERENCES system.office(code) ON UPDATE CASCADE ON DELETE RESTRICT;
-CREATE INDEX application_status_type_office_id_fk143_ind ON application.application_status_type (office_id);
+ALTER TABLE application.application_status_type ADD CONSTRAINT application_status_type_office_code_fk143 
+            FOREIGN KEY (office_code) REFERENCES system.office(code) ON UPDATE CASCADE ON DELETE RESTRICT;
+CREATE INDEX application_status_type_office_code_fk143_ind ON application.application_status_type (office_code);
 
 ALTER TABLE application.application_action_type ADD CONSTRAINT application_action_type_operation_fk144 
             FOREIGN KEY (operation) REFERENCES application.operation_type(code) ON UPDATE CASCADE ON DELETE RESTRICT;
@@ -6629,7 +6630,7 @@ begin
   -- It assigns the application to the head of the office where the application is moved.
   if (select count(*) from application.application_status where application_id = new.application_id)>1 then
     assignee_id_v = (select u.id from system.appuser u 
-      inner join application.application_status_type s on u.office_code= s.office_id and u.office_head
+      inner join application.application_status_type s on u.office_code= s.office_code and u.office_head
       where s.code = new.type_code);
   else
     assignee_id_v = (select u.id from system.appuser u where u.username= new.change_user);
