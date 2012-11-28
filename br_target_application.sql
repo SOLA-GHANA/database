@@ -128,7 +128,7 @@ where target.application_id = #{id}
   and others.application_id != #{id}');
 
 insert into system.br_validation(br_id, severity_code, target_operation_code, target_code, target_request_type_code, order_of_execution) 
-values('application-plan-approval-multiple-requests', 'critical', 'validate', 'application', 'smd-plancertification', 7);
+values('application-plan-approval-multiple-requests', 'warning', 'validate', 'application', 'smd-plancertification', 7);
 ----------------------------------------------------------------------------------------------------
 
 insert into system.br(id, technical_type_code, feedback) 

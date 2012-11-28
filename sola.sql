@@ -1429,10 +1429,8 @@ LADM Definition
 The type of party';
     
  -- Data for the table party.party_type -- 
-insert into party.party_type(code, display_value, status) values('naturalPerson', 'Natural Person::::Persona Naturale', 'c');
-insert into party.party_type(code, display_value, status) values('nonNaturalPerson', 'Non-natural Person::::Persona Giuridica', 'c');
-insert into party.party_type(code, display_value, status) values('baunit', 'Basic Administrative Unit::::Unita Amministrativa di Base', 'c');
-insert into party.party_type(code, display_value) values('group', 'Group::::Gruppo');
+insert into party.party_type(code, display_value, status) values('naturalPerson', 'Natural Person', 'c');
+insert into party.party_type(code, display_value, status) values('nonNaturalPerson', 'Non-natural Person', 'c');
 
 
 
@@ -3163,7 +3161,6 @@ CREATE TRIGGER __track_history AFTER UPDATE OR DELETE
    EXECUTE PROCEDURE f_for_trg_track_history();
     
  -- Data for the table system.appuser -- 
-insert into system.appuser(id, username, first_name, last_name, passwd, active, office_head) values('test-id', 'test', 'Test', 'The BOSS', '9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08', true, false);
 insert into system.appuser(id, username, first_name, last_name, passwd, active, office_code, office_head) values('csau-head', 'csau-head', 'CSAU', 'Head', '9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08', true, 'csau', true);
 insert into system.appuser(id, username, first_name, last_name, passwd, active, office_code, office_head) values('smd-registry-head', 'registry-head', 'Registry', 'Head', '9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08', true, 'smd-registry', true);
 insert into system.appuser(id, username, first_name, last_name, passwd, active, office_code, office_head) values('gis-section-head', 'gis-head', 'Gis', 'Head', '9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08', true, 'cartographic-gis-section', true);
@@ -3171,6 +3168,7 @@ insert into system.appuser(id, username, first_name, last_name, passwd, active, 
 insert into system.appuser(id, username, first_name, last_name, passwd, active, office_code, office_head) values('csau-normal', 'csau-normal', 'CSAU', 'Normal', '9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08', true, 'csau', false);
 insert into system.appuser(id, username, first_name, last_name, passwd, active, office_code, office_head) values('smd-registry-normal', 'registry-normal', 'Registry', 'Normal', '9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08', true, 'smd-registry', false);
 insert into system.appuser(id, username, first_name, last_name, passwd, active, office_code, office_head) values('archive-head', 'archive-head', 'Archive', 'Head', '9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08', true, 'archive', true);
+insert into system.appuser(id, username, first_name, last_name, passwd, active, office_code, office_head) values('admin', 'admin', 'Admin', 'Admin', '9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08', true, 'it', false);
 
 
 
@@ -3226,11 +3224,11 @@ LADM Definition
 Not Applicable';
     
  -- Data for the table party.communication_type -- 
-insert into party.communication_type(code, display_value, status) values('eMail', 'e-Mail::::E-mail', 'c');
-insert into party.communication_type(code, display_value, status) values('fax', 'Fax::::Fax', 'c');
-insert into party.communication_type(code, display_value, status) values('post', 'Post::::Posta', 'c');
-insert into party.communication_type(code, display_value, status) values('phone', 'Phone::::Telefono', 'c');
-insert into party.communication_type(code, display_value, status) values('courier', 'Courier::::Corriere', 'c');
+insert into party.communication_type(code, display_value, status) values('eMail', 'e-Mail', 'c');
+insert into party.communication_type(code, display_value, status) values('fax', 'Fax', 'c');
+insert into party.communication_type(code, display_value, status) values('post', 'Post', 'c');
+insert into party.communication_type(code, display_value, status) values('phone', 'Phone', 'c');
+insert into party.communication_type(code, display_value, status) values('courier', 'Courier', 'c');
 
 
 
@@ -3354,37 +3352,31 @@ comment on table application.application_action_type is 'The list of potential a
 There are actions that does not belong to a certain status, but can be taken in any moment in the application.';
     
  -- Data for the table application.application_action_type -- 
-insert into application.application_action_type(code, start_status_type_code, display_value, description, action_order) values('smd-regnr-received-vetchecklist', 'smd-regnr-received', 'Vet against checklist', 'Check if required infromation is collected.', 10);
-insert into application.application_action_type(code, start_status_type_code, display_value, description, action_order) values('smd-regnr-receivepayment', 'smd-regnr-vetted', 'Receive payment', 'Check if the payment is fully made.', 10);
-insert into application.application_action_type(code, start_status_type_code, display_value, description, action_order) values('smd-plancertification-vetchecklist', 'smd-plancertification-received', 'Vet against checklist', 'Check if required infromation is collected.', 10);
-insert into application.application_action_type(code, start_status_type_code, display_value, description, action_order) values('smd-plancertification-receivepay', 'smd-plancertification-received', 'Receive payment', 'Check if the payment is fully made.', 20);
-insert into application.application_action_type(code, start_status_type_code, display_value, description, action_order, gui_type) values('smd-plancertification-generate', 'smd-plancertification-received', 'Generate plan', 'The plan generation starts from this screen.', 30, 'MapRequestActionPanel');
-insert into application.application_action_type(code, start_status_type_code, display_value, description, action_order, gui_type) values('smdcadchange-make-changes', 'smd-cadchange-make-changes', 'Change map (split/merge/new)', 'The cadastre change process starts by clicking in the Make changes button.', 10, 'MapRequestActionPanel');
-insert into application.application_action_type(code, start_status_type_code, display_value, description, action_order) values('smdcadchange-vetchecklist', 'smd-cadchange-submit', 'Vet against checklist', 'Check if required infromation is collected.', 10);
-insert into application.application_action_type(code, start_status_type_code, display_value, next_status_type_code, description, action_order) values('smdcadchange-move-to-change', 'smd-cadchange-submit', 'Go to Make Changes', 'smd-cadchange-make-changes', 'Move to the status where the cadastre change can start.', 20);
-insert into application.application_action_type(code, start_status_type_code, display_value, description, action_order, gui_type) values('smd-regnr-paid-assign-nr', 'smd-regnr-paid', 'Assign Regional No. and print', 'Generate regional number by clicking the button below.', 10, 'RegionalNumberGenerationActionPanel');
-insert into application.application_action_type(code, start_status_type_code, display_value, next_status_type_code, description, action_order, operation) values('smdcadchange-set-completed', 'smd-cadchange-make-changes', 'Complete', 'smd-cadchange-completed', 'The application moves to completed status.', 40, 'approve');
-insert into application.application_action_type(code, start_status_type_code, display_value, next_status_type_code, description, action_order, operation) values('smdcadchange-set-cancelled', 'smd-cadchange-make-changes', 'Cancel', 'smd-cadchange-cancelled', 'The application will be cancelled.', 50, 'cancel');
-insert into application.application_action_type(code, start_status_type_code, display_value, description, action_order) values('smdcadchange-receivepayment', 'smd-cadchange-submit', 'Receive payment', 'Check if the payment is fully made.', 15);
-insert into application.application_action_type(code, start_status_type_code, display_value, next_status_type_code, description, action_order, operation) values('smd-plancertification-set-completed', 'smd-plancertification-received', 'Complete', 'smd-plancertification-completed', 'The application moves to completed status.', 50, 'approve');
-insert into application.application_action_type(code, start_status_type_code, display_value, next_status_type_code, description, action_order, gui_type, operation) values('smd-plancertification-set-cancelled', 'smd-plancertification-received', 'Cancel', 'smd-plancertification-cancelled', 'The application will be cancelled.', 60, 'MultipleRequestsActionPanel', 'cancel');
-insert into application.application_action_type(code, display_value, description, action_order) values('generic-add-document', 'Add document', 'It adds a document in the list of documents related with application.', 200);
-insert into application.application_action_type(code, display_value, description, action_order) values('generic-remove-document', 'Remove document', 'It removes a document from the application.', 200);
-insert into application.application_action_type(code, display_value, description, action_order) values('generic-add-spatialunit', 'Add spatial unit', 'It adds new spatial unit to the application.', 200);
-insert into application.application_action_type(code, display_value, description, action_order) values('generic-remove-spatialunit', 'Remove spatial unit', 'It removes a spatial unit to the application.', 200);
-insert into application.application_action_type(code, display_value, description, action_order) values('generic-add-person', 'Add person', 'It adds a person to the application.', 200);
-insert into application.application_action_type(code, display_value, description, action_order) values('generic-remove-person', 'Remove person', 'It removes a person from the application.', 200);
-insert into application.application_action_type(code, start_status_type_code, display_value, description, action_order) values('smdcadredef-submit-vetchecklist', 'smd-cadredef-submit', 'Vet against checklist', 'Check if required infromation is collected.', 10);
-insert into application.application_action_type(code, start_status_type_code, display_value, next_status_type_code, description, action_order) values('smdcadredef-submit-makechanges', 'smd-cadredef-submit', 'Go to make changes', 'smd-cadredef-make-changes', 'It moves the application in the status to make changes.', 20);
-insert into application.application_action_type(code, start_status_type_code, display_value, next_status_type_code, description, action_order, operation) values('smdcadredef-submit-cancel', 'smd-cadredef-submit', 'Cancel', 'smd-cadredef-cancelled', 'It cancells the application.', 30, 'cancel');
-insert into application.application_action_type(code, start_status_type_code, display_value, description, action_order, gui_type) values('smdcadredef-makechanges-makechanges', 'smd-cadredef-make-changes', 'Make changes', 'From this screen, the operation of changing/removing/adding nodes of cadastre objects can happen.', 10, 'MapRequestActionPanel');
-insert into application.application_action_type(code, start_status_type_code, display_value, next_status_type_code, description, action_order, operation) values('smdcadredef-makechanges-complete', 'smd-cadredef-make-changes', 'Complete', 'smd-cadredef-completed', 'It approves the changes.', 20, 'approve');
-insert into application.application_action_type(code, start_status_type_code, display_value, next_status_type_code, description, action_order, operation) values('smdcadredef-makechanges-approve', 'smd-cadredef-make-changes', 'Cancel', 'smd-cadredef-cancelled', 'It cancells the changes and the application.', 30, 'cancel');
-insert into application.application_action_type(code, start_status_type_code, display_value, next_status_type_code, description, action_order) values('smd-regnr-received-set-vetted', 'smd-regnr-received', 'Change status to vetted', 'smd-regnr-vetted', 'It changes the status of the application to Vetted.', 20);
-insert into application.application_action_type(code, start_status_type_code, display_value, next_status_type_code, description, action_order, operation) values('smd-regnr-received-set-rejected', 'smd-regnr-received', 'Reject', 'smd-regnr-rejected', 'It rejects the application.', 30, 'cancel');
-insert into application.application_action_type(code, start_status_type_code, display_value, next_status_type_code, description, action_order) values('smd-regnr-vetted-set-paid', 'smd-regnr-vetted', 'Change status to paid', 'smd-regnr-paid', 'It changes the status to Paid.', 20);
-insert into application.application_action_type(code, start_status_type_code, display_value, next_status_type_code, description, action_order) values('smd-regnr-vetted-set-rejected', 'smd-regnr-vetted', 'Reject', 'smd-regnr-rejected', 'It rejects the application.', 30);
-insert into application.application_action_type(code, start_status_type_code, display_value, next_status_type_code, description, action_order, operation) values('smd-regnr-paid-set-completed', 'smd-regnr-paid', 'Complete', 'smd-regnr-completed', 'It changes the status of the application to Completed.', 20, 'approve');
+insert into application.application_action_type(code, start_status_type_code, display_value, status, description, action_order) values('smd-regnr-received-vetchecklist', 'smd-regnr-received', 'Vet against checklist', 'c', 'Check if required infromation is collected.', 10);
+insert into application.application_action_type(code, start_status_type_code, display_value, status, description, action_order) values('smd-regnr-receivepayment', 'smd-regnr-vetted', 'Receive payment', 'c', 'Check if the payment is fully made.', 10);
+insert into application.application_action_type(code, start_status_type_code, display_value, status, description, action_order) values('smd-plancertification-vetchecklist', 'smd-plancertification-received', 'Vet against checklist', 'c', 'Check if required infromation is collected.', 10);
+insert into application.application_action_type(code, start_status_type_code, display_value, status, description, action_order) values('smd-plancertification-receivepay', 'smd-plancertification-received', 'Receive payment', 'c', 'Check if the payment is fully made.', 20);
+insert into application.application_action_type(code, start_status_type_code, display_value, status, description, action_order, gui_type) values('smd-plancertification-generate', 'smd-plancertification-received', 'Generate plan', 'c', 'The plan generation starts from this screen.', 30, 'MapRequestActionPanel');
+insert into application.application_action_type(code, start_status_type_code, display_value, status, description, action_order, gui_type) values('smdcadchange-make-changes', 'smd-cadchange-make-changes', 'Change map (split/merge/new)', 'c', 'The cadastre change process starts by clicking in the Make changes button.', 10, 'MapRequestActionPanel');
+insert into application.application_action_type(code, start_status_type_code, display_value, status, description, action_order) values('smdcadchange-vetchecklist', 'smd-cadchange-submit', 'Vet against checklist', 'c', 'Check if required infromation is collected.', 10);
+insert into application.application_action_type(code, start_status_type_code, display_value, next_status_type_code, status, description, action_order) values('smdcadchange-move-to-change', 'smd-cadchange-submit', 'Go to Make Changes', 'smd-cadchange-make-changes', 'c', 'Move to the status where the cadastre change can start.', 20);
+insert into application.application_action_type(code, start_status_type_code, display_value, status, description, action_order, gui_type) values('smd-regnr-paid-assign-nr', 'smd-regnr-paid', 'Assign Regional No. and print', 'c', 'Generate regional number by clicking the button below.', 10, 'RegionalNumberGenerationActionPanel');
+insert into application.application_action_type(code, start_status_type_code, display_value, next_status_type_code, status, description, action_order, operation) values('smdcadchange-set-completed', 'smd-cadchange-make-changes', 'Complete', 'smd-cadchange-completed', 'c', 'The application moves to completed status.', 40, 'approve');
+insert into application.application_action_type(code, start_status_type_code, display_value, next_status_type_code, status, description, action_order, operation) values('smdcadchange-set-cancelled', 'smd-cadchange-make-changes', 'Cancel', 'smd-cadchange-cancelled', 'c', 'The application will be cancelled.', 50, 'cancel');
+insert into application.application_action_type(code, start_status_type_code, display_value, status, description, action_order) values('smdcadchange-receivepayment', 'smd-cadchange-submit', 'Receive payment', 'c', 'Check if the payment is fully made.', 15);
+insert into application.application_action_type(code, start_status_type_code, display_value, next_status_type_code, status, description, action_order, operation) values('smd-plancertification-set-completed', 'smd-plancertification-received', 'Complete', 'smd-plancertification-completed', 'c', 'The application moves to completed status.', 50, 'approve');
+insert into application.application_action_type(code, start_status_type_code, display_value, next_status_type_code, status, description, action_order, gui_type, operation) values('smd-plancertification-set-cancelled', 'smd-plancertification-received', 'Cancel', 'smd-plancertification-cancelled', 'c', 'The application will be cancelled.', 60, 'MultipleRequestsActionPanel', 'cancel');
+insert into application.application_action_type(code, start_status_type_code, display_value, status, description, action_order) values('smdcadredef-submit-vetchecklist', 'smd-cadredef-submit', 'Vet against checklist', 'c', 'Check if required infromation is collected.', 10);
+insert into application.application_action_type(code, start_status_type_code, display_value, next_status_type_code, status, description, action_order) values('smdcadredef-submit-makechanges', 'smd-cadredef-submit', 'Go to make changes', 'smd-cadredef-make-changes', 'c', 'It moves the application in the status to make changes.', 20);
+insert into application.application_action_type(code, start_status_type_code, display_value, next_status_type_code, status, description, action_order, operation) values('smdcadredef-submit-cancel', 'smd-cadredef-submit', 'Cancel', 'smd-cadredef-cancelled', 'c', 'It cancells the application.', 30, 'cancel');
+insert into application.application_action_type(code, start_status_type_code, display_value, status, description, action_order, gui_type) values('smdcadredef-makechanges-makechanges', 'smd-cadredef-make-changes', 'Make changes', 'c', 'From this screen, the operation of changing/removing/adding nodes of cadastre objects can happen.', 10, 'MapRequestActionPanel');
+insert into application.application_action_type(code, start_status_type_code, display_value, next_status_type_code, status, description, action_order, operation) values('smdcadredef-makechanges-complete', 'smd-cadredef-make-changes', 'Complete', 'smd-cadredef-completed', 'c', 'It approves the changes.', 20, 'approve');
+insert into application.application_action_type(code, start_status_type_code, display_value, next_status_type_code, status, description, action_order, operation) values('smdcadredef-makechanges-approve', 'smd-cadredef-make-changes', 'Cancel', 'smd-cadredef-cancelled', 'c', 'It cancells the changes and the application.', 30, 'cancel');
+insert into application.application_action_type(code, start_status_type_code, display_value, next_status_type_code, status, description, action_order) values('smd-regnr-received-set-vetted', 'smd-regnr-received', 'Change status to vetted', 'smd-regnr-vetted', 'c', 'It changes the status of the application to Vetted.', 20);
+insert into application.application_action_type(code, start_status_type_code, display_value, next_status_type_code, status, description, action_order, operation) values('smd-regnr-received-set-rejected', 'smd-regnr-received', 'Reject', 'smd-regnr-rejected', 'c', 'It rejects the application.', 30, 'cancel');
+insert into application.application_action_type(code, start_status_type_code, display_value, next_status_type_code, status, description, action_order) values('smd-regnr-vetted-set-paid', 'smd-regnr-vetted', 'Change status to paid', 'smd-regnr-paid', 'c', 'It changes the status to Paid.', 20);
+insert into application.application_action_type(code, start_status_type_code, display_value, next_status_type_code, status, description, action_order) values('smd-regnr-vetted-set-rejected', 'smd-regnr-vetted', 'Reject', 'smd-regnr-rejected', 'c', 'It rejects the application.', 30);
+insert into application.application_action_type(code, start_status_type_code, display_value, next_status_type_code, status, description, action_order, operation) values('smd-regnr-paid-set-completed', 'smd-regnr-paid', 'Complete', 'smd-regnr-completed', 'c', 'It changes the status of the application to Completed.', 20, 'approve');
 
 
 
@@ -3410,9 +3402,9 @@ LADM Definition
 Not Applicable';
     
  -- Data for the table party.id_type -- 
-insert into party.id_type(code, display_value, status, description) values('nationalID', 'National ID::::Carta Identita Nazionale', 'c', 'The main person ID that exists in the country::::Il principale documento identificativo nel paese');
-insert into party.id_type(code, display_value, status, description) values('nationalPassport', 'National Passport::::Passaporto Nazionale', 'c', 'A passport issued by the country::::Passaporto fornito dal paese');
-insert into party.id_type(code, display_value, status, description) values('otherPassport', 'Other Passport::::Altro Passaporto', 'c', 'A passport issued by another country::::Passaporto Fornito da un altro paese');
+insert into party.id_type(code, display_value, status, description) values('nationalID', 'National ID', 'c', 'The main person ID that exists in the country::::Il principale documento identificativo nel paese');
+insert into party.id_type(code, display_value, status, description) values('nationalPassport', 'National Passport', 'c', 'A passport issued by the country::::Passaporto fornito dal paese');
+insert into party.id_type(code, display_value, status, description) values('otherPassport', 'Other Passport', 'c', 'A passport issued by another country::::Passaporto Fornito da un altro paese');
 insert into party.id_type(code, display_value, status, description) values('surveyorId', 'Surveyor ID', 'c', 'An id that is given to a surveyor');
 
 
@@ -3761,8 +3753,7 @@ LADM Definition
 Not Applicable';
     
  -- Data for the table system.language -- 
-insert into system.language(code, display_value, active, is_default, item_order) values('en-US', 'English::::Inglese', true, true, 1);
-insert into system.language(code, display_value, active, is_default, item_order) values('it-IT', 'Italian::::Italiano', true, false, 2);
+insert into system.language(code, display_value, active, is_default, item_order) values('en-US', 'English', true, true, 1);
 
 
 
@@ -4832,16 +4823,10 @@ CREATE TABLE system.approle_appgroup(
 comment on table system.approle_appgroup is 'This many-to-many table contains groups, related to security roles. Allows to have multiple roles for one group.';
     
  -- Data for the table system.approle_appgroup -- 
-insert into system.approle_appgroup(approle_code, appgroup_id) values('DashbrdViewAssign', 'super-group-id');
-insert into system.approle_appgroup(approle_code, appgroup_id) values('DashbrdViewUnassign', 'super-group-id');
-insert into system.approle_appgroup(approle_code, appgroup_id) values('DashbrdViewOwn', 'super-group-id');
-insert into system.approle_appgroup(approle_code, appgroup_id) values('ApplnView', 'super-group-id');
-insert into system.approle_appgroup(approle_code, appgroup_id) values('ApplnCreate', 'super-group-id');
-insert into system.approle_appgroup(approle_code, appgroup_id) values('ApplnStatus', 'super-group-id');
-insert into system.approle_appgroup(approle_code, appgroup_id) values('ApplnAssignSelf', 'super-group-id');
-insert into system.approle_appgroup(approle_code, appgroup_id) values('ApplnUnassignSelf', 'super-group-id');
-insert into system.approle_appgroup(approle_code, appgroup_id) values('ApplnAssignOthers', 'super-group-id');
-insert into system.approle_appgroup(approle_code, appgroup_id) values('ApplnUnassignOthers', 'super-group-id');
+insert into system.approle_appgroup(approle_code, appgroup_id) values('ManageSecurity', 'admin-group');
+insert into system.approle_appgroup(approle_code, appgroup_id) values('ManageRefdata', 'admin-group');
+insert into system.approle_appgroup(approle_code, appgroup_id) values('ManageBR', 'admin-group');
+insert into system.approle_appgroup(approle_code, appgroup_id) values('ManageSettings', 'admin-group');
 
 
 
@@ -4862,7 +4847,8 @@ CREATE TABLE system.appgroup(
 comment on table system.appgroup is 'This table contains list of groups, which are used to group users with similar rights in the system.';
     
  -- Data for the table system.appgroup -- 
-insert into system.appgroup(id, name, description) values('super-group-id', 'Super group', 'This is a group of users that has right in anything. It is used in developement. In production must be removed.');
+insert into system.appgroup(id, name, description) values('super-group', 'Super group', 'This is a group of users that has right to use everthing in the application.');
+insert into system.appgroup(id, name, description) values('admin-group', 'Admin group', 'This group is used for admin users');
 
 
 
@@ -4881,7 +4867,7 @@ CREATE TABLE system.appuser_appgroup(
 comment on table system.appuser_appgroup is 'This many-to-many table contains users, related to groups. Allows to have multiple groups for one user.';
     
  -- Data for the table system.appuser_appgroup -- 
-insert into system.appuser_appgroup(appuser_id, appgroup_id) values('test-id', 'super-group-id');
+insert into system.appuser_appgroup(appuser_id, appgroup_id) values('admin', 'admin-group');
 
 
 
@@ -5834,6 +5820,7 @@ insert into system.office(code, display_value, status) values('csau', 'CSAU', 'c
 insert into system.office(code, display_value, status) values('smd-registry', 'SMD Registry', 'c');
 insert into system.office(code, display_value, status) values('cartographic-gis-section', 'Cartographic and GIS Section', 'c');
 insert into system.office(code, display_value, status) values('archive', 'Archive', 'c');
+insert into system.office(code, display_value, status) values('it', 'IT', 'c');
 
 
 
@@ -6626,7 +6613,7 @@ begin
   insert into application.application_action(id, status_id, type_code, action_order, change_user)
   select uuid_generate_v1(), new.id, code, action_order, new.change_user
   from application.application_action_type 
-  where start_status_type_code= new.type_code;
+  where status = 'c' and start_status_type_code= new.type_code;
   -- It assigns the application to the head of the office where the application is moved.
   if (select count(*) from application.application_status where application_id = new.application_id)>1 then
     assignee_id_v = (select u.id from system.appuser u 
@@ -6650,13 +6637,14 @@ CREATE TRIGGER trg_after_new after insert
 --Extra modifications added to the script that cannot be generated --
 
 insert into system.approle_appgroup (approle_code, appgroup_id)
-SELECT r.code, 'super-group-id' FROM system.approle r
-where r.code not in (select approle_code from system.approle_appgroup g where appgroup_id = 'super-group-id');
+SELECT r.code, 'super-group' FROM system.approle r
+where r.code not ilike 'Manage%' and r.code not in (select approle_code from system.approle_appgroup g where appgroup_id in ( 'super-group', 'admin-group') );
 
 insert into system.appuser_appgroup (appuser_id, appgroup_id)
 select u.id, g.id
 from system.appuser u, system.appgroup g
-where (u.id, g.id) not in (select appuser_id, appgroup_id from system.appuser_appgroup );
+where u.id != 'admin' and g.id !='admin-group' 
+  and (u.id, g.id) not in (select appuser_id, appgroup_id from system.appuser_appgroup );
 
 --Make the function ST_MakeBox3D(geometry, geometry) RETURNS box3d if it does not exist. The function does not exist if Postgis 2.0 is used
 
