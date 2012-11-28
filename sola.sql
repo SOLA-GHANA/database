@@ -1145,24 +1145,9 @@ LADM Definition
 Not Defined';
     
  -- Data for the table source.administrative_source_type -- 
-insert into source.administrative_source_type(code, display_value, status, is_for_registration) values('agriConsent', 'Agricultural Consent::::Permesso Agricolo', 'x', false);
-insert into source.administrative_source_type(code, display_value, status, is_for_registration) values('agriLease', 'Agricultural Lease::::Contratto Affitto Agricolo', 'x', false);
-insert into source.administrative_source_type(code, display_value, status, is_for_registration) values('agriNotaryStatement', 'Agricultural Notary Statement::::Dichiarazione Agricola Notaio', 'x', false);
-insert into source.administrative_source_type(code, display_value, status, is_for_registration) values('deed', 'Deed', 'c', false);
-insert into source.administrative_source_type(code, display_value, status, is_for_registration) values('lease', 'Lease::::ITALIANO', 'c', false);
-insert into source.administrative_source_type(code, display_value, status, is_for_registration) values('mortgage', 'Mortgage::::Ipoteca', 'c', false);
-insert into source.administrative_source_type(code, display_value, status, is_for_registration) values('title', 'Title::::Titolo', 'c', false);
-insert into source.administrative_source_type(code, display_value, status, is_for_registration, description) values('proclamation', 'Proclamation::::Bando', 'c', false, 'Extension to LADM');
-insert into source.administrative_source_type(code, display_value, status, is_for_registration, description) values('courtOrder', 'Court Order::::Ordine Tribunale', 'c', false, 'Extension to LADM');
-insert into source.administrative_source_type(code, display_value, status, is_for_registration, description) values('agreement', 'Agreement::::Accordo', 'c', false, 'Extension to LADM');
-insert into source.administrative_source_type(code, display_value, status, is_for_registration, description) values('contractForSale', 'Contract for Sale::::ITALIANO', 'c', false, 'Extension to LADM');
-insert into source.administrative_source_type(code, display_value, status, is_for_registration, description) values('will', 'Will::::ITALIANO', 'c', false, 'Extension to LADM');
-insert into source.administrative_source_type(code, display_value, status, is_for_registration, description) values('powerOfAttorney', 'Power of Attorney::::ITALIANO', 'c', true, 'Extension to LADM');
-insert into source.administrative_source_type(code, display_value, status, is_for_registration, description) values('standardDocument', 'Standard Document::::ITALIANO', 'c', false, 'Extension to LADM');
-insert into source.administrative_source_type(code, display_value, status, is_for_registration, description) values('cadastralMap', 'Cadastral Map::::Mappa Catastale', 'c', false, 'Extension to LADM');
-insert into source.administrative_source_type(code, display_value, status, is_for_registration, description) values('cadastralSurvey', 'Cadastral Survey::::Rilevamento Catastale', 'c', false, 'Extension to LADM');
-insert into source.administrative_source_type(code, display_value, status, is_for_registration, description) values('waiver', 'Waiver to Caveat or other requirement', 'c', false, 'Extension to LADM');
-insert into source.administrative_source_type(code, display_value, status, is_for_registration, description) values('idVerification', 'Form of Identification including Personal ID', 'c', false, 'Extension to LADM');
+insert into source.administrative_source_type(code, display_value, status, is_for_registration, description) values('idVerification', 'ID Card', 'c', false, 'Extension to LADM');
+insert into source.administrative_source_type(code, display_value, status, is_for_registration) values('sitePlan', 'Site Plan', 'c', false);
+insert into source.administrative_source_type(code, display_value, status, is_for_registration) values('reqFromSurveor', 'Request letter from Licensed Surveyor', 'c', false);
 
 
 
@@ -3574,6 +3559,18 @@ FLOSS SOLA Extension
 LADM Definition
 Not Applicable';
     
+ -- Data for the table application.request_type_requires_source_type -- 
+insert into application.request_type_requires_source_type(source_type_code, request_type_code) values('sitePlan', 'smd-plancertification');
+insert into application.request_type_requires_source_type(source_type_code, request_type_code) values('idVerification', 'smd-plancertification');
+insert into application.request_type_requires_source_type(source_type_code, request_type_code) values('sitePlan', 'cadastreChange');
+insert into application.request_type_requires_source_type(source_type_code, request_type_code) values('idVerification', 'cadastreChange');
+insert into application.request_type_requires_source_type(source_type_code, request_type_code) values('sitePlan', 'redefineCadastre');
+insert into application.request_type_requires_source_type(source_type_code, request_type_code) values('idVerification', 'redefineCadastre');
+insert into application.request_type_requires_source_type(source_type_code, request_type_code) values('reqFromSurveor', 'smd-regnr');
+insert into application.request_type_requires_source_type(source_type_code, request_type_code) values('idVerification', 'smd-regnr');
+
+
+
 --Table application.application_status_type ----
 DROP TABLE IF EXISTS application.application_status_type CASCADE;
 CREATE TABLE application.application_status_type(
@@ -5212,9 +5209,11 @@ CREATE TABLE application.fee_type(
 comment on table application.fee_type is 'Ghana extension: The types of fees applicable for a certain request.';
     
  -- Data for the table application.fee_type -- 
-insert into application.fee_type(code, display_value, status) values('dutyStamp', 'Duty stamp tax', 'c');
+insert into application.fee_type(code, display_value, status) values('planCertificationFee', 'Plan certification fee', 'c');
 insert into application.fee_type(code, display_value, status, description) values('regionalNumberFee', 'Regional number fee', 'c', 'Fee that is paid when applying for a regional number');
-insert into application.fee_type(code, display_value, status) values('parcelCadastralFee', 'Parcel/cadastral fee', 'c');
+insert into application.fee_type(code, display_value, status) values('approvalOfPlanFee', 'Approval of plan fee', 'c');
+insert into application.fee_type(code, display_value, status) values('reprintOfPlan', 'Reprint of Plan fee', 'c');
+insert into application.fee_type(code, display_value, status) values('searchFee', 'Search', 'c');
 
 
 
@@ -5297,6 +5296,12 @@ CREATE TABLE application.request_type_fee_type(
 
 comment on table application.request_type_fee_type is 'Ghana extension: The types of fees applicable to a given request type';
     
+ -- Data for the table application.request_type_fee_type -- 
+insert into application.request_type_fee_type(request_code, fee_code) values('smd-plancertification', 'planCertificationFee');
+insert into application.request_type_fee_type(request_code, fee_code) values('smd-plancertification', 'reprintOfPlan');
+
+
+
 --Table party.party_id ----
 DROP TABLE IF EXISTS party.party_id CASCADE;
 CREATE TABLE party.party_id(
