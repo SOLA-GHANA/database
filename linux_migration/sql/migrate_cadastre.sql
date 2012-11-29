@@ -5,14 +5,14 @@ create table staging_area.district_source as
 select region as region_id, distric_nr as num, 'District ' || distric_nr as locality, 
 0 as year_declared, st_geometryn(the_geom,1) as the_geom 
 from staging_area.district
-where st_isvalid(the_geom);
+where the_geom is null or st_isvalid(the_geom);
 
 drop table if exists staging_area.block_source;
 create table staging_area.block_source as 
 select b.region, substring(b.district from 3 for 2) as district, 
 substring(b.section  from 2 for 3) as section_num, blockno, st_geometryn(b.geom,1) as the_geom
 from staging_area.shape_block b
-where st_isvalid(b.geom);
+where st_isvalid(b.geom) and blockno is not null;
 
 --View that gives the sections
 drop table if exists staging_area.section_source;
@@ -70,8 +70,7 @@ region_id,
 num,year_declared, 
 st_transform(the_geom,32630) 
 as the_geom
-from staging_area.district_source
-where the_geom is not null and st_isvalid(the_geom);
+from staging_area.district_source;
 
 -- Insert sections.
 insert into cadastre.section(id, district_id, num, the_geom)
