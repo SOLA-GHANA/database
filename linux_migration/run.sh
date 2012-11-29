@@ -17,9 +17,6 @@ echo
 echo "Database Connectivity"
 echo "....................."
 
-rm -rf "logs"
-mkdir -p "logs"
-
 #Accepting Database connection parameters.
 read -p "Server IP Address / Host name [localhost]:" DBHOSTNAME
 read -p "Server Port [5432]:" DBPORT
@@ -266,46 +263,48 @@ fi
 
 
 #Take each ZIP file in the specified section source location and process it.
-for FILE in $( ls $SECSRCDIR|grep -i .zip$)
+for FULLFILENAME in $( ls $SECSRCDIR|grep -i .zip$)
 do
-   echo "Processing Sections File ... "$FILE
+   echo "Processing Sections File ... "$FULLFILENAME
    
    #Get the district number from the name of the selected ZIP file.	
-   SECNO="${FILE%.*}"
+   FILE="${FULLFILENAME%.*}"
+   SECNO=${FILE:4:4}
+   DISTNO=${FILE:0:4}
 
    #Create a folder for the selected section ZIP file and extract the selected file
-   rm -rf $SECDESTDIR/$SECNO &>> logs/sections.log
-   mkdir -p $SECDESTDIR/$SECNO &>> logs/sections.log
+   rm -rf $SECDESTDIR/$FILE &>> logs/sections.log
+   mkdir -p $SECDESTDIR/$FILE &>> logs/sections.log
 
    #Unzip the selected section file into the specified location.
-   unzip  $SECSRCDIR/$SECNO.ZIP  -d $SECDESTDIR/$SECNO &>> logs/sections.log
+   unzip  $SECSRCDIR/$FULLFILENAME -d $SECDESTDIR &>> logs/sections.log
 
    #Converts LOT Data from ArcInfo format to ArcInfo Coverage
-   avcimport $SECDESTDIR/$SECNO/LOT.E00 $SECDESTDIR/$SECNO/cov_lot &>> logs/sections.log
+   avcimport $SECDESTDIR/$FILE/LOT.E00 $SECDESTDIR/$FILE/cov_lot &>> logs/sections.log
    
    #Converts BLOCK Data from ArcInfo format to ArcInfo Coverage
-   avcimport $SECDESTDIR/$SECNO/BLOCK.E00 $SECDESTDIR/$SECNO/cov_block &>> logs/sections.log
-   
+   avcimport $SECDESTDIR/$FILE/BLOCK.E00 $SECDESTDIR/$FILE/cov_block &>> logs/sections.log
+
    #Converts LOT Data from ArcInfo Coverage to Shapefile
-   ogr2ogr -f "ESRI Shapefile" -skipfailures  $SECDESTDIR/$SECNO/shape_lot $SECDESTDIR/$SECNO/cov_lot &>> logs/sections.log
+   ogr2ogr -f "ESRI Shapefile" -skipfailures  $SECDESTDIR/$FILE/shape_lot $SECDESTDIR/$FILE/cov_lot &>> logs/sections.log
    
    #Converts BLOCK Data from ArcInfo Coverage to Shapefile
-   ogr2ogr -f "ESRI Shapefile" -skipfailures  $SECDESTDIR/$SECNO/shape_block $SECDESTDIR/$SECNO/cov_block &>> logs/sections.log
+   ogr2ogr -f "ESRI Shapefile" -skipfailures  $SECDESTDIR/$FILE/shape_block $SECDESTDIR/$FILE/cov_block &>> logs/sections.log
    
    #Converts BLOCK Shapefile to block_data.sql file with insert statements (only PAL.shp)
-   shp2pgsql -a -s $SRID -g geom $SECDESTDIR/$SECNO/shape_block/PAL staging_area.shape_block|grep -i INSERT &>  "$SECDESTDIR/$SECNO/block_data.sql"
+   shp2pgsql -a -s $SRID -g geom $SECDESTDIR/$FILE/shape_block/PAL staging_area.shape_block|grep -i INSERT &>  "$SECDESTDIR/$FILE/block_data.sql"
   
    #Runs the block_data.sql script against the database and populate the table staging_area.shape_block
-   psql -U $DBUSER -h $DBHOSTNAME -p $DBPORT -d $DBNAME -f "$SECDESTDIR/$SECNO/block_data.sql" &>> logs/sections.log
+   psql -U $DBUSER -h $DBHOSTNAME -p $DBPORT -d $DBNAME -f "$SECDESTDIR/$FILE/block_data.sql" &>> logs/sections.log
 
    #Updates the new inserted records to accept the section identifier and the region
-   psql -U $DBUSER -h $DBHOSTNAME -p $DBPORT -d $DBNAME --command="update staging_area.shape_block set section='$SECNO', region='$ANSREG' where section is null" &>> logs/sections.log
+   psql -U $DBUSER -h $DBHOSTNAME -p $DBPORT -d $DBNAME --command="update staging_area.shape_block set section='$SECNO', district='$DISTNO', region='$ANSREG' where section is null" &>> logs/sections.log
 
    #Converts LOT Shapefile to lot_data.sql file with insert statements (only PAL.shp)
-   shp2pgsql -a -s $SRID -g geom $SECDESTDIR/$SECNO/shape_lot/PAL staging_area.shape_lot| grep -i INSERT &>"$SECDESTDIR/$SECNO/lot_data.sql"
+   shp2pgsql -a -s $SRID -g geom $SECDESTDIR/$FILE/shape_lot/PAL staging_area.shape_lot| grep -i INSERT &>"$SECDESTDIR/$FILE/lot_data.sql"
 
    #Runs the lot_data.sql script against the database and populate the table staging_area.shape_lot
-   psql -U $DBUSER -h $DBHOSTNAME -p $DBPORT -d $DBNAME -f "$SECDESTDIR/$SECNO/lot_data.sql" &>> logs/sections.log
+   psql -U $DBUSER -h $DBHOSTNAME -p $DBPORT -d $DBNAME -f "$SECDESTDIR/$FILE/lot_data.sql" &>> logs/sections.log
    echo ""
 done
 
@@ -319,8 +318,8 @@ fi
 #Clean-UP
 echo 
 echo "Cleaning up..."
-rm -rf $SECDESTDIR
-rm -rf $DISTDESTDIR
+#rm -rf $SECDESTDIR
+#rm -rf $DISTDESTDIR
 unset PGPASSWORD
 
 

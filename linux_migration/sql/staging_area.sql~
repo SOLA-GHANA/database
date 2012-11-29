@@ -106,3 +106,40 @@ CREATE SEQUENCE shape_lot_gid_seq
 ALTER TABLE ONLY shape_lot ALTER COLUMN gid SET DEFAULT nextval('shape_lot_gid_seq'::regclass);
 
 ALTER TABLE ONLY shape_lot ADD CONSTRAINT shape_lot_pkey PRIMARY KEY (gid);
+
+
+
+CREATE OR REPLACE VIEW staging_area.district_source AS 
+ SELECT district.region AS region_id, district.distric_nr AS num, 'District '::text || district.distric_nr::text AS locality, 0 AS year_declared, st_geometryn(district.the_geom, 1) AS the_geom
+   FROM staging_area.district;
+
+
+CREATE OR REPLACE VIEW staging_area.parcel AS 
+ SELECT (((((((b.region::text || '/'::text) || d.num::text) || '/'::text) || "substring"(b.section::text, 2, 3)) || '/'::text) || b.blockno) || '/'::text) || l.lotno AS id, 'parcel' AS type_code, (((((b.region::text || '/'::text) || d.num::text) || '/'::text) || "substring"(b.section::text, 2, 3)) || '/'::text) || b.blockno AS name_firstpart, l.lotno AS name_lastpart, 'current' AS status_code, st_transform(st_geometryn(l.geom, 1), 32630) AS geom_polygon, 'migration-transaction' AS transaction_id
+   FROM staging_area.shape_lot l, staging_area.shape_block b, staging_area.district_source d
+  WHERE l.lotno <> 9999::smallint AND l.geom && b.geom AND st_intersects(st_centroid(l.geom), b.geom) AND st_intersects(st_centroid(l.geom), d.the_geom);
+
+CREATE OR REPLACE VIEW staging_area.block AS 
+ SELECT shape_block.region, "substring"(shape_block.section::text, 2, 3) AS section_nr, st_transform(st_union(st_geometryn(shape_block.geom, 1)), 32630) AS the_geom
+   FROM staging_area.shape_block
+  GROUP BY shape_block.region, shape_block.section;
+
+CREATE OR REPLACE VIEW staging_area.section_source AS 
+ SELECT b.region, "substring"(b.section::text, 2, 3) AS num, st_union(st_geometryn(b.geom, 1)) AS the_geom
+   FROM staging_area.shape_block b
+   JOIN staging_area.district_source d ON st_intersects(st_centroid(b.geom), d.the_geom)
+  GROUP BY b.region, b.section;
+
+CREATE OR REPLACE VIEW staging_area.section AS 
+ SELECT shape_block.region, "substring"(shape_block.section::text, 2, 3) AS section_nr, st_transform(st_union(st_geometryn(shape_block.geom, 1)), 32630) AS the_geom
+   FROM staging_area.shape_block
+  GROUP BY shape_block.region, shape_block.section;
+
+create view staging_area.parcel_duplications as 
+select name_firstpart as region_section_block, name_lastpart as parcel_nr, count(*) as nr_of_duplications
+from staging_area.parcel
+group by name_firstpart, name_lastpart 
+having count(*)>1
+order by 1,2;
+
+
