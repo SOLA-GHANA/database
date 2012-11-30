@@ -6,13 +6,6 @@ echo "Welcome to the SOLA Ghana data migration"
 echo "****************************************"
 echo 
 echo "This program has been developed for Ubuntu Linux"
-echo "Please ensure the following libraries are installed before running this script:"
-echo "1. avce00"
-echo "2. gdal-bin"
-echo 
-echo "If you are not sure the libraries are installed, run the following command as root (#)"
-echo "aptitude install avce00 gdal-bin"
-echo 
 echo
 echo "Database Connectivity"
 echo "....................."
@@ -129,27 +122,27 @@ then
 	mkdir -p $DISTDESTDIR &> logs/districts.log
 
 	#Take each ZIP file in the specified district source location and process it.
-	for FILE in $( ls $DISTSRCDIR|grep -i .zip$)
+	for FILE in $( ls $DISTSRCDIR)
 	do
 	   echo "Processing District File ... "$FILE
 	   #Get the district number from the name of the selected ZIP file.
-	   DISTNO="${FILE%.*}"
+	   #DISTNO="${FILE%.*}"
 
 	   #Create a folder for the selected district ZIP file and extract the selected file
-	   rm -rf $DISTDESTDIR/$DISTNO &> logs/districts.log
-	   mkdir -p $DISTDESTDIR/$DISTNO &>> logs/districts.log
+	   rm -rf $DISTDESTDIR/$FILE &> logs/districts.log
+	   cp -r $DISTSRCDIR/$FILE $DISTDESTDIR/$FILE &>> logs/districts.log
 
 	   #Unzip the selected district file into the specified location.
-	   unzip  $DISTSRCDIR/$FILE  -d $DISTDESTDIR &>> logs/districts.log
+	   #unzip  $DISTSRCDIR/$FILE  -d $DISTDESTDIR &>> logs/districts.log
 
 	   #it is expected that the unzipped file has a ".shp" file which must be selected and processed
-	   SHPFILE=`ls $DISTDESTDIR/$DISTNO|grep -i .shp$`
+	   SHPFILE=`ls $DISTDESTDIR/$FILE|grep -i .shp$`
 	
 	   #converting the .shp file into sql insert statements and storing it in the "district_data.sql" file
-	   shp2pgsql -a -s $SRID -g the_geom $DISTDESTDIR/$DISTNO/$SHPFILE staging_area.district|grep -i INSERT &> "$DISTDESTDIR/$DISTNO/district_data.sql"
+	   shp2pgsql -a -s $SRID -g the_geom $DISTDESTDIR/$FILE/$SHPFILE staging_area.district|grep -i INSERT &> "$DISTDESTDIR/$FILE/district_data.sql"
 	
 	   #Run the "district_data.sql" against the postgres database to insert data into the staging_area.district table
-	   psql -U $DBUSER -h $DBHOSTNAME -p $DBPORT -d $DBNAME -f "$DISTDESTDIR/$DISTNO/district_data.sql" &>> logs/districts.log
+	   psql -U $DBUSER -h $DBHOSTNAME -p $DBPORT -d $DBNAME -f "$DISTDESTDIR/$FILE/district_data.sql" &>> logs/districts.log
 	   echo ""
 	done
 fi 
@@ -263,53 +256,61 @@ fi
 
 
 #Take each ZIP file in the specified section source location and process it.
-for FULLFILENAME in $( ls $SECSRCDIR|grep -i .zip$)
+for FILE in $( ls $SECSRCDIR)
 do
-   echo "Processing Sections File ... "$FULLFILENAME
+   echo "Processing Sections File ... "$FILE
    
    #Get the district number from the name of the selected ZIP file.	
-   FILE="${FULLFILENAME%.*}"
+   #FILE="${FULLFILENAME%.*}"
    SECNO=${FILE:4:4}
    DISTNO=${FILE:0:4}
+   echo "District: "$DISTNO" Section: "$SECNO
+   
 
    #Create a folder for the selected section ZIP file and extract the selected file
    rm -rf $SECDESTDIR/$FILE &>> logs/sections.log
    mkdir -p $SECDESTDIR/$FILE &>> logs/sections.log
 
-   #Unzip the selected section file into the specified location.
-   unzip  $SECSRCDIR/$FULLFILENAME -d $SECDESTDIR &>> logs/sections.log
+   #Copy to the destination folder.
+   cp -r $SECSRCDIR/$FILE $SECDESTDIR
 
-   #Converts LOT Data from ArcInfo format to ArcInfo Coverage
-   avcimport $SECDESTDIR/$FILE/LOT.E00 $SECDESTDIR/$FILE/cov_lot &>> logs/sections.log
-   
-   #Converts BLOCK Data from ArcInfo format to ArcInfo Coverage
-   avcimport $SECDESTDIR/$FILE/BLOCK.E00 $SECDESTDIR/$FILE/cov_block &>> logs/sections.log
 
-   #Converts LOT Data from ArcInfo Coverage to Shapefile
-   ogr2ogr -f "ESRI Shapefile" -skipfailures  $SECDESTDIR/$FILE/shape_lot $SECDESTDIR/$FILE/cov_lot &>> logs/sections.log
-   
-   #Converts BLOCK Data from ArcInfo Coverage to Shapefile
-   ogr2ogr -f "ESRI Shapefile" -skipfailures  $SECDESTDIR/$FILE/shape_block $SECDESTDIR/$FILE/cov_block &>> logs/sections.log
-   
-   #Converts BLOCK Shapefile to block_data.sql file with insert statements (only PAL.shp)
-   shp2pgsql -a -s $SRID -g geom $SECDESTDIR/$FILE/shape_block/PAL staging_area.shape_block|grep -i INSERT &>  "$SECDESTDIR/$FILE/block_data.sql"
-  
-   #Runs the block_data.sql script against the database and populate the table staging_area.shape_block
+   ######### Move block shape file #################################################################
+
+   #Delete staging_area.t table if present
+   psql -U $DBUSER -h $DBHOSTNAME -p $DBPORT -d $DBNAME -c "drop table if exists staging_area.t" &>> logs/sections.log
+
+   #Converts BLOCK Shapefile to block_data.sql file with create table and insert statements
+   shp2pgsql -s $SRID -g geom $SECDESTDIR/$FILE/BLOCK staging_area.t >  "$SECDESTDIR/$FILE/block_data.sql"
+     
+   #Runs the block_data.sql script against the database and populate the table staging_area.t
    psql -U $DBUSER -h $DBHOSTNAME -p $DBPORT -d $DBNAME -f "$SECDESTDIR/$FILE/block_data.sql" &>> logs/sections.log
 
-   #Updates the new inserted records to accept the section identifier and the region
-   psql -U $DBUSER -h $DBHOSTNAME -p $DBPORT -d $DBNAME --command="update staging_area.shape_block set section='$SECNO', district='$DISTNO', region='$ANSREG' where section is null" &>> logs/sections.log
+   #Move rows from staging_area.t to stagign_area.shape_block 
+   psql -U $DBUSER -h $DBHOSTNAME -p $DBPORT -d $DBNAME -c "insert into staging_area.shape_block(region, district, section, blockno, geom) select '$ANSREG', '$DISTNO', '$SECNO', blockno, geom from staging_area.t" &>> logs/sections.log
 
-   #Converts LOT Shapefile to lot_data.sql file with insert statements (only PAL.shp)
-   shp2pgsql -a -s $SRID -g geom $SECDESTDIR/$FILE/shape_lot/PAL staging_area.shape_lot| grep -i INSERT &>"$SECDESTDIR/$FILE/lot_data.sql"
+   ######### Move lot shape file ###################################################################
+
+   #Delete staging_area.t table if present
+   psql -U $DBUSER -h $DBHOSTNAME -p $DBPORT -d $DBNAME -c "drop table if exists staging_area.t" &>> logs/sections.log
+
+   #Converts LOT Shapefile to lot_data.sql file with create table and insert statements
+   shp2pgsql -s $SRID -g geom $SECDESTDIR/$FILE/LOT staging_area.t >"$SECDESTDIR/$FILE/lot_data.sql"
 
    #Runs the lot_data.sql script against the database and populate the table staging_area.shape_lot
    psql -U $DBUSER -h $DBHOSTNAME -p $DBPORT -d $DBNAME -f "$SECDESTDIR/$FILE/lot_data.sql" &>> logs/sections.log
+
+   #Move rows from staging_area.t to stagign_area.shape_lot 
+   psql -U $DBUSER -h $DBHOSTNAME -p $DBPORT -d $DBNAME -c "insert into staging_area.shape_lot(lotno, geom) select lotno, geom from staging_area.t" &>> logs/sections.log
+
+   #Delete staging_area.t table if present
+   psql -U $DBUSER -h $DBHOSTNAME -p $DBPORT -d $DBNAME -c "drop table if exists staging_area.t" &>> logs/sections.log
+
    echo ""
 done
 
 #if the user chose to migrate either district or section data, then invoke migrate_cadastre.sql script 
-#which will move data from the staing area into their respective cadatastre schema objects
+#which will move data from the staging area into their respective cadatastre schema objects
 if [[ "$ANSSEC" =~ "Y" || "$ANSSEC" =~ "y" ]] || [[ "$ANSDIST" =~ "Y" || "$ANSDIST" =~ "y" ]]; then
 	echo "Processing data from Staging Area into Cadastre Schema ..."
 	psql -U $DBUSER -h $DBHOSTNAME -p $DBPORT -d $DBNAME -f "sql/migrate_cadastre.sql" &> logs/cadastre_migration.log
@@ -318,16 +319,9 @@ fi
 #Clean-UP
 echo 
 echo "Cleaning up..."
-#rm -rf $SECDESTDIR
-#rm -rf $DISTDESTDIR
+rm -rf $SECDESTDIR
+rm -rf $DISTDESTDIR
 unset PGPASSWORD
-
 
 echo
 echo "Migration ended. See log for detailed results."
-
-
-
-
-
-

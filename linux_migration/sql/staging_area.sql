@@ -1,4 +1,4 @@
-\echo Creating staging area :: `date`	
+﻿
 DROP SCHEMA IF EXISTS staging_area CASCADE;
 
 CREATE SCHEMA staging_area;
@@ -37,9 +37,9 @@ CREATE TABLE district
 (
   gid serial NOT NULL,
   id integer,
-  distric_nr character varying(10),
+  no character varying(10),
   region character varying(10),
-  year_declared integer,
+  year integer,
   the_geom geometry,
   CONSTRAINT enforce_dims_the_geom CHECK (st_ndims(the_geom) = 2),
   CONSTRAINT enforce_geotype_the_geom CHECK (geometrytype(the_geom) = 'MULTIPOLYGON'::text OR the_geom IS NULL),
@@ -48,17 +48,11 @@ CREATE TABLE district
 
 CREATE INDEX district_the_geom_gist ON district USING gist (the_geom);
 
-ALTER TABLE ONLY district ADD CONSTRAINT district_pkey PRIMARY KEY (distric_nr);
+ALTER TABLE ONLY district ADD CONSTRAINT district_pkey PRIMARY KEY (no);
 
 CREATE TABLE staging_area.shape_block (
-    gid integer NOT NULL,
-    area double precision,
-    perimeter double precision,
-    "cov_block#" integer,
-    "cov_block-" integer,
+    gid serial NOT NULL,
     blockno smallint,
-    x_coord double precision,
-    y_coord double precision,
     geom public.geometry,
     section character varying(20),
     district character varying(5),
@@ -68,42 +62,16 @@ CREATE TABLE staging_area.shape_block (
     CONSTRAINT enforce_srid_geom CHECK ((public.st_srid(geom) = 2136))
 );
 
-CREATE SEQUENCE shape_block_gid_seq
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-ALTER TABLE ONLY shape_block ALTER COLUMN gid SET DEFAULT nextval('shape_block_gid_seq'::regclass);
 ALTER TABLE ONLY shape_block ADD CONSTRAINT shape_block_pkey PRIMARY KEY (gid);
 
 CREATE TABLE shape_lot (
-    gid integer NOT NULL,
-    area double precision,
-    perimeter double precision,
-    "cov_lot#" integer,
-    "cov_lot-id" integer,
+    gid serial NOT NULL,
     lotno smallint,
-    "desc" character varying(65),
-    noaccess smallint,
-    numpts smallint,
-    x_coord double precision,
-    y_coord double precision,
     geom public.geometry,
     CONSTRAINT enforce_dims_geom CHECK ((public.st_ndims(geom) = 2)),
     CONSTRAINT enforce_geotype_geom CHECK (((public.geometrytype(geom) = 'MULTIPOLYGON'::text) OR (geom IS NULL))),
     CONSTRAINT enforce_srid_geom CHECK ((public.st_srid(geom) = 2136))
 );
 
-
-CREATE SEQUENCE shape_lot_gid_seq
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-ALTER TABLE ONLY shape_lot ALTER COLUMN gid SET DEFAULT nextval('shape_lot_gid_seq'::regclass);
 
 ALTER TABLE ONLY shape_lot ADD CONSTRAINT shape_lot_pkey PRIMARY KEY (gid);
