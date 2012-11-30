@@ -39,6 +39,7 @@ CREATE TABLE district
   id integer,
   distric_nr character varying(10),
   region character varying(10),
+  year_declared integer,
   the_geom geometry,
   CONSTRAINT enforce_dims_the_geom CHECK (st_ndims(the_geom) = 2),
   CONSTRAINT enforce_geotype_the_geom CHECK (geometrytype(the_geom) = 'MULTIPOLYGON'::text OR the_geom IS NULL),

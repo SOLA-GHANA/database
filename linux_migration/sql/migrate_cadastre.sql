@@ -3,7 +3,7 @@
 drop table if exists staging_area.district_source  cascade;
 create table staging_area.district_source as 
 select region as region_id, distric_nr as num, 'District ' || distric_nr as locality, 
-0 as year_declared, st_geometryn(the_geom,1) as the_geom 
+coalesce(year_declared, 0) as year_declared, st_geometryn(the_geom,1) as the_geom 
 from staging_area.district
 where the_geom is null or st_isvalid(the_geom);
 
@@ -34,7 +34,7 @@ l.lotno as name_lastpart,
 st_transform(st_geometryn(l.geom,1), 32630) as geom_polygon,
 'migration-transaction' as transaction_id
 from staging_area.shape_lot l, staging_area.block_source b
-where st_isvalid(l.geom) and st_isvalid(b.the_geom) and l.lotno != '9999' 
+where st_isvalid(l.geom) and l.lotno != '9999' 
   and l.geom && b.the_geom and st_intersects(st_centroid(l.geom), b.the_geom);
 
 --Empty the table where the data about regions, districts, rections and blocks are stored
