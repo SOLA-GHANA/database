@@ -1,5 +1,6 @@
 # Subfolders to ignore
 logs/
+migration/data/
 
 # Files to ignore 
 Thumbs.db
